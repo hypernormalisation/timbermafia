@@ -15,7 +15,7 @@ RESET = "\033[0;0m"
 BOLD = "\033[;1m"
 REVERSE = "\033[;7m"
 total_columns = 120
-caller_padding = 40
+caller_padding = 25
 time_padding = 14
 total_padding = caller_padding + time_padding
 printable_area = total_columns - total_padding
@@ -165,24 +165,29 @@ class TMFormatter(logging.Formatter):
     """Formatter for our logging, pretty as a picture, natural splendour etc."""
 
     @staticmethod
-    def set_caller_name(name):
+    def set_caller_name(my_name):
         """
         A function to take the caller string (the bit in the log printout
         which tells you where the call was made) and format it, to make sure
         it fits the rest of the printout.
         """
         # First of all, if we are running a header, return an empty string.
-        if 'decorator_divider' in name:
+        if 'decorator_divider' in my_name:
             return ''
         # If any unhelpful terms appear chuck them.
-        terms_to_remove = []  # '.<module>', '.__init__']
+        terms_to_remove = ['.<module>']  # , '.__init__']
+
+        # Remove any leading ' root.' for class logs
+        if my_name.startswith(' root.'):
+            my_name = my_name[6:]
+
         for term in terms_to_remove:
-            if term in name:
-                name = name.replace(term, '')
+            if term in my_name:
+                my_name = my_name.replace(term, '')
         # If there is enough room for the full caller designation, return it.
-        if len(name) <= caller_padding:
-            return name
-        return '...' + name[-caller_padding + 2:]
+        if len(my_name) <= caller_padding:
+            return my_name
+        return '...' + my_name[-caller_padding + 2:]
 
     def format(self, record):
         s = super(TMFormatter, self).format(record)
@@ -227,16 +232,17 @@ class TMFormatter(logging.Formatter):
         s = '\n'.join(s_list).strip(" ")
         return s
 
-
-def headed_log(func):
-    """A decorator for header breaks in stdout."""
-
-    def decorator_divider(*args, **kwargs):
-        func(divider())
-        func(*args, **kwargs)
-        func(divider())
-
-    return decorator_divider
+#
+# def headed_log(func):
+#     """A decorator for header breaks in stdout."""
+#
+#     def decorator_divider(*args, **kwargs):
+#         func(divider())
+#         func(*args, **kwargs)
+#         func(divider())
+#
+#     return decorator_divider
+# #
 
 
 class Logged:
@@ -248,38 +254,38 @@ class Logged:
     @property
     def log(self):
         """Property to return a mixin logger."""
-        return logging.getLogger(f'timbermafia.{self.__class__.__name__}')
+        return logging.getLogger(f'root.{self.__class__.__name__}')
 
 
-def ts_func_log(func):
-    """
-    Decorator for functions which override the log in the module
-    namespace to use the correct name.
-    """
+# def ts_func_log(func):
+#     """
+#     Decorator for functions which override the log in the module
+#     namespace to use the correct name.
+#     """
+#
+#     def wrapper(*args, **kwargs):
+#         log = logging.getLogger(f'timbermafia.{sys.modules[func.__module__].__name__}')
+#         r = func(*args, **kwargs)
+#         return r
+#
+#     return wrapper
 
-    def wrapper(*args, **kwargs):
-        log = logging.getLogger(f'timbermafia.{sys.modules[func.__module__].__name__}')
-        r = func(*args, **kwargs)
-        return r
-
-    return wrapper
-
-log = logging.getLogger(__name__)
-sh = ColorisingStreamHandler(sys.stdout)
-f = TMFormatter(
-    '{asctime} | {name}.{funcName} | {message}',
-    '%H:%M:%S', style='{'
-)
-sh.setFormatter(f)
-log.setLevel(logging.DEBUG)
-log.addHandler(sh)
-log.headed_info = headed_log(log.info)
-log.headed_debug = headed_log(log.debug)
-print(__name__)
-
-def test_func_log():
-    log.info('I am called from within the function test_func_log')
-
-
-def test_func_log2():
-    log.info('I am called from within the function test_func_log2')
+# log = logging.getLogger(__name__)
+# sh = ColorisingStreamHandler(sys.stdout)
+# f = TMFormatter(
+#     '{asctime} | {name}.{funcName} | {message}',
+#     '%H:%M:%S', style='{'
+# )
+# sh.setFormatter(f)
+# log.setLevel(logging.DEBUG)
+# log.addHandler(sh)
+# log.headed_info = headed_log(log.info)
+# log.headed_debug = headed_log(log.debug)
+# print(__name__)
+#
+# def test_func_log():
+#     log.info('I am called from within the function test_func_log')
+#
+#
+# def test_func_log2():
+#     log.info('I am called from within the function test_func_log2')
