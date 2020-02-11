@@ -3,22 +3,19 @@ import logging
 import sys
 import textwrap
 import functools
+from logging import root
+from timbermafia.rainbow import RainbowStreamHandler
 
-DARK_RED = "\033[0;31m"
-RED = "\033[1;31m"
-YELLOW = "\033[1;33m"
-WHITE = "\033[1;37m"
-BLUE = "\033[1;34m"
-CYAN = "\033[1;36m"
-GREEN = "\033[0;32m"
-RESET = "\033[0;0m"
-BOLD = "\033[;1m"
-REVERSE = "\033[;7m"
+_valid_styles = ['default', 'test1']
+
+LONGEST_LEVEL_NAME = len(max(list(logging._nameToLevel.keys())))
+
 total_columns = 120
 caller_padding = 25
 time_padding = 14
 total_padding = caller_padding + time_padding
 printable_area = total_columns - total_padding
+
 
 divider_flag = 'divider_replace_me'
 
@@ -27,138 +24,206 @@ def divider():
     return divider_flag
 
 
-def run_from_ipython():
-    try:
-        # noinspection PyUnresolvedReferences
-        __IPYTHON__
-        return True
-    except NameError:
-        return False
+def enhance(log):
+    levels = []
+    for level_name in logging._nameToLevel.keys():
+        if level_name != 'NOTSET':
+            levels.append(level_name.lower())
+    levels = set(levels)
+    funcs = [getattr(root, level) for level in levels]
+    for func, level in zip(funcs, levels):
+        setattr(log, f'h{level}', headed_log(func=func))
 
 
-# I'm so sorry this is because of Steve Jobs forgive me.
-use_alt_colors = run_from_ipython()
+def configure_root_logger(*args, **kwargs):
+    """Function to configure the root logger in logging, analagous to logging.basicConfig"""
+    # Reset handlers
+    force = kwargs.get('force', True)
+    if force:
+        for h in root.handlers[:]:
+            root.removeHandler(h)
+            h.close()
 
+    # Pre-determined style
+    style = kwargs.get('style', 'default')
+    if style not in _valid_styles:
+        raise ValueError(f'"style" must be one of: {", ".join(_valid_styles)}')
 
-class ColorisingStreamHandler(logging.StreamHandler):
-    # color names to indices
-    color_map = {
-        "black": 0,
-        "red": 1,
-        "green": 2,
-        "yellow": 3,
-        "blue": 4,
-        "magenta": 5,
-        "cyan": 6,
-        "white": 7 # if use_alt_colors else 0,
-    }
+    ###################################################################################
+    # Configure formatters
+    ###################################################################################
+    show_level = kwargs.get('show_level', False)
+    user_format = kwargs.get('format', False)
+    time_format = kwargs.get('time_format', '%H:%M:%S')
+    format_style = kwargs.get('format_style', '{')
 
-    # level colour specifications
-    # syntax: logging.level: (background color, foreground color, bold)
-    level_map = {
-        'local_filename': (None, "cyan", False),
-        'remote_filename': (None, "red", False),
-        logging.DEBUG: (None, "blue", False),
-        logging.INFO: (None, "white", False),
-        logging.WARNING: (None, "yellow", False),
-        logging.ERROR: (None, "red", False),
-        logging.CRITICAL: ("red", "white", True),
-    }
+    my_format = user_format if user_format else '{asctime} | {name}.{funcName} | {message}'
+    my_format_loglevel = user_format if user_format else '{asctime} | {levelname} | {name}.{funcName} | {message}'
+    format_to_use = my_format_loglevel if show_level else my_format
 
-    # control sequence introducer
-    CSI = "\x1b["
+    stream_formatter = TMFormatter(format_to_use, time_format,
+                                               style=format_style)
+    file_formatter = TMFormatter(my_format_loglevel, time_format,
+                                             style=format_style)
 
-    # normal colours
-    reset = "\x1b[0m"
-
-    def istty(self):
-        isatty = getattr(self.stream, "isatty", None)
-        return isatty and isatty()
-
-    def emit(self, record):
-        try:
-            message = self.format(record)
-            stream = self.stream
-            if not self.istty:
-                stream.write(message)
-            else:
-                self.output_colorized(message)
-            stream.write(getattr(self, "terminator", "\n"))
-            self.flush()
-        except (KeyboardInterrupt, SystemExit):
-            raise
-        except:
-            self.handleError(record)
-
-    def output_colorized(self, message):
-        self.stream.write(message)
-
-    def colorize(self, message, record):
-        levelno = None
-        # print(record, isinstance(record, str))
-        if isinstance(record, str):
-            levelno = record
+    ###################################################################################
+    # Configure handlers
+    ###################################################################################
+    handlers = []
+    # Configure stream handler if required.
+    stream = kwargs.get('stream', None)
+    show_colour = kwargs.get('show_colour', True)
+    if stream:
+        if show_colour:
+            s = RainbowStreamHandler(stream=stream)
         else:
-            levelno = record.levelno
-        if levelno in self.level_map:
-            background_color, foreground_color, bold = self.level_map[levelno]
-            parameters = []
-            if background_color in self.color_map:
-                parameters.append(str(self.color_map[background_color] + 40))
-            if foreground_color in self.color_map:
-                parameters.append(str(self.color_map[foreground_color] + 30))
-            if bold:
-                parameters.append("1")
-            if parameters:
-                message = "".join(
-                    (self.CSI, ";".join(parameters), "m", message, self.reset)
-                )
-        return message
+            s = logging.StreamHandler(stream=stream)
+        s.setFormatter(stream_formatter)
+        handlers.append(s)
 
-    def format(self, record):
-        message = logging.StreamHandler.format(self, record)
-        # print('tc:', record)
-        if self.istty:
-            # Colorise all multiline output.
-            parts = message.split("\n", 1)
-            for index, part in enumerate(parts):
-                parts[index] = self.colorize(part, record)
-            message = "\n".join(parts)
-            # Now colorise all file names.
-            parts = message.split(' ')
-            # print(parts)
-            for index, part in enumerate(parts):
-                if not part:
-                    continue
-                if part[0] == '/':
-                    parts[index] = self.colorize(part, 'local_filename')
-                elif part.startswith('https'):
-                    parts[index] = self.colorize(part, 'remote_filename')
-            message = " ".join(parts)
-        return message
+    # Configure file handler if required.
+    filename = kwargs.get('filename', None)
+    if filename:
+        f = logging.FileHandler(filename)
+        f.setFormatter(file_formatter)
+        handlers.append(f)
+
+    ###################################################################################
+    # Final config
+    ###################################################################################
+    for h in handlers:
+        root.addHandler(h)
+
+    # Set level
+    level = kwargs.get('level', 'DEBUG')
+    root.setLevel(level)
+
+    # Enhance the root log
+    enhance(logging.Logger)
 
 
-def log(function):
-    @functools.wraps(function)
-    def decoration(
-            *args,
-            **kwargs
-    ):
-        # Get the names of all of the function arguments.
-        arguments = inspect.getcallargs(function, *args, **kwargs)
-        logging.debug(
-            "function '{function_name}' called by '{caller_name}' with arguments:"
-            "\n{arguments}".format(
-                function_name=function.__name__,
-                caller_name=inspect.stack()[1][3],
-                arguments=arguments
-            ))
-        result = function(*args, **kwargs)
-        logging.debug("function '{function_name}' result: {result}\n".format(
-            function_name=function.__name__,
-            result=result
-        ))
-    return decoration
+###########################################################################
+# Custom logging classes.
+###########################################################################
+# class RainbowStreamHandler(logging.StreamHandler):
+#     # color names to indices
+#     color_map = {
+#         "black": 0,
+#         "red": 1,
+#         "green": 2,
+#         "yellow": 3,
+#         "blue": 4,
+#         "magenta": 5,
+#         "cyan": 6,
+#         "white": 7 if use_alt_colors else 0,
+#     }
+#
+#     # level colour specifications
+#     # syntax: logging.level: (background color, foreground color, bold)
+#     level_map = {
+#         'local_filename': (None, "cyan", False),
+#         'remote_filename': (None, "green", False),
+#         logging.DEBUG: (None, "blue", False),
+#         logging.INFO: (None, "white", False),
+#         logging.WARNING: (None, "yellow", False),
+#         logging.ERROR: (None, "red", False),
+#         logging.CRITICAL: ("red", "white", False),
+#     }
+#
+#     # control sequence introducer
+#     CSI = "\x1b["
+#
+#     # normal colours
+#     reset = "\33["
+#
+#     def istty(self):
+#         isatty = getattr(self.stream, "isatty", None)
+#         return isatty and isatty()
+#
+#     def emit(self, record):
+#         try:
+#             message = self.format(record)
+#             stream = self.stream
+#             if not self.istty:
+#                 stream.write(message)
+#             else:
+#                 self.output_colorized(message)
+#             stream.write(getattr(self, "terminator", "\n"))
+#             self.flush()
+#         except (KeyboardInterrupt, SystemExit):
+#             raise
+#         except:
+#             self.handleError(record)
+#
+#     def output_colorized(self, message):
+#         self.stream.write(message)
+#
+#     def colorize(self, message, record):
+#         levelno = None
+#         # print(record, isinstance(record, str))
+#         if isinstance(record, str):
+#             levelno = record
+#         else:
+#             levelno = record.levelno
+#         if levelno in self.level_map:
+#             background_color, foreground_color, bold = self.level_map[levelno]
+#             parameters = []
+#             if background_color in self.color_map:
+#                 parameters.append(str(self.color_map[background_color] + 40))
+#             if foreground_color in self.color_map:
+#                 parameters.append(str(self.color_map[foreground_color] + 30))
+#             if bold:
+#                 parameters.append("1")
+#             if parameters:
+#                 message = "".join(
+#                     (self.CSI, ";".join(parameters), "m", message, self.reset)
+#                 )
+#         return message
+#
+#     def format(self, record):
+#         message = logging.StreamHandler.format(self, record)
+#         # print('tc:', record)
+#         if self.istty:
+#             # Colorise all multiline output.
+#             parts = message.split("\n", 1)
+#             for index, part in enumerate(parts):
+#                 parts[index] = self.colorize(part, record)
+#             message = "\n".join(parts)
+#             # Now colorise all file names.
+#             parts = message.split(' ')
+#             # print(parts)
+#             for index, part in enumerate(parts):
+#                 if not part:
+#                     continue
+#                 if part[0] == '/':
+#                     parts[index] = self.colorize(part, 'local_filename')
+#                 elif part.startswith('http') or part.startswith('www'):
+#                     parts[index] = self.colorize(part, 'remote_filename')
+#             message = " ".join(parts)
+#         return message
+
+
+# def log(function):
+#     @functools.wraps(function)
+#     def decoration(
+#             *args,
+#             **kwargs
+#     ):
+#         # Get the names of all of the function arguments.
+#         arguments = inspect.getcallargs(function, *args, **kwargs)
+#         logging.debug(
+#             "function '{function_name}' called by '{caller_name}' with arguments:"
+#             "\n{arguments}".format(
+#                 function_name=function.__name__,
+#                 caller_name=inspect.stack()[1][3],
+#                 arguments=arguments
+#             ))
+#         result = function(*args, **kwargs)
+#         logging.debug("function '{function_name}' result: {result}\n".format(
+#             function_name=function.__name__,
+#             result=result
+#         ))
+#     return decoration
 
 
 class TMFormatter(logging.Formatter):
@@ -184,26 +249,33 @@ class TMFormatter(logging.Formatter):
         for term in terms_to_remove:
             if term in my_name:
                 my_name = my_name.replace(term, '')
+
         # If there is enough room for the full caller designation, return it.
         if len(my_name) <= caller_padding:
             return my_name
         return '...' + my_name[-caller_padding + 2:]
 
     def format(self, record):
+
+        show_level_name = 'levelname' in self._fmt
+
         s = super(TMFormatter, self).format(record)
 
         if divider_flag in s:
             s = total_columns * '-'
             return s
 
+        if '\nTraceback (most recent call last)' in s:
+            print(s)
+
         split_list = s.split('|')
         # Find exceptions and remove them from the string, for separate handling.
-        if '\nTraceback (most recent call last)' in split_list[-1]:
-            s = split_list[-1]
-            i = s.find('\nTraceback (most recent call last)')
-            split_list[-1] = s[:i]
-            exception_message = s[i:]
-            print(RED + exception_message + '\n')
+        # if '\nTraceback (most recent call last)' in split_list[-1]:
+        #     s = split_list[-1]
+        #     i = s.find('\nTraceback (most recent call last)')
+        #     split_list[-1] = s[:i]
+        #     exception_message = s[i:]
+        #     print(RED + exception_message + '\n')
 
         # Get the timestamp.
         timestamp = split_list[0]
@@ -232,43 +304,29 @@ class TMFormatter(logging.Formatter):
         s = '\n'.join(s_list).strip(" ")
         return s
 
+
+def headed_log(func):
+    """A decorator for header breaks in stdout."""
+
+    def decorator_divider(self, *args, **kwargs):
+        func(divider())
+        func(*args, **kwargs)
+        func(divider())
+
+    return decorator_divider
 #
-# def headed_log(func):
-#     """A decorator for header breaks in stdout."""
-#
-#     def decorator_divider(*args, **kwargs):
-#         func(divider())
-#         func(*args, **kwargs)
-#         func(divider())
-#
-#     return decorator_divider
-# #
 
 
 class Logged:
     """
-    A class to inherit from, such that the logger knows the
-    name of the class making the call.
+    Inherit from this class to provide a mixin logger via
+    the log property.
     """
 
     @property
     def log(self):
         """Property to return a mixin logger."""
         return logging.getLogger(f'root.{self.__class__.__name__}')
-
-
-# def ts_func_log(func):
-#     """
-#     Decorator for functions which override the log in the module
-#     namespace to use the correct name.
-#     """
-#
-#     def wrapper(*args, **kwargs):
-#         log = logging.getLogger(f'timbermafia.{sys.modules[func.__module__].__name__}')
-#         r = func(*args, **kwargs)
-#         return r
-#
-#     return wrapper
 
 # log = logging.getLogger(__name__)
 # sh = ColorisingStreamHandler(sys.stdout)
@@ -281,6 +339,10 @@ class Logged:
 # log.addHandler(sh)
 # log.headed_info = headed_log(log.info)
 # log.headed_debug = headed_log(log.debug)
+
+# def enhance(log):
+
+
 # print(__name__)
 #
 # def test_func_log():
