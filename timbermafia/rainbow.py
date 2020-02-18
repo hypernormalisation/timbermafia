@@ -16,9 +16,10 @@ neon = {
     'url': (201, None),
 }
 
-colour_style_dict = {
+palette_dict = {
     'neon': neon,
 }
+
 
 class RainbowStreamHandler(logging.StreamHandler):
     """
@@ -29,8 +30,8 @@ class RainbowStreamHandler(logging.StreamHandler):
     """
     def __init__(self, *args, **kwargs):
         super().__init__()
-        colour_map_key = kwargs.get('colour_style', 'neon')
-        self.level_map = colour_style_dict.get(colour_map_key)
+        colour_map_key = kwargs.get('palette')
+        self.level_map = palette_dict.get(colour_map_key)
 
     def istty(self):
         isatty = getattr(self.stream, "isatty", None)
