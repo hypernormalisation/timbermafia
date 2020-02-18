@@ -69,33 +69,70 @@ class TMFormatter(logging.Formatter):
         sections = [s.strip() for s in self._fmt.split(self.separator)]
         chunks = [chunk.strip() for chunk in s.split(self.separator)]
 
-        # Set timestamp
+        # Set timestamp padding
         if 'asctime' in self._fmt:
             for section, message in zip(sections, chunks):
                 if 'asctime' in section:
-                    self.time_padding = len(message) + 2
+                    tp = len(message)
+                    self.padding_dict['asctime'] = tp
+
+        # Set message padding, i.e. the rest of the space
+        fields = [s for s in self.padding_dict if s in self._fmt]
+        print(fields)
+
+        # Space for delimiters
+        reserved_padding = 2 * len(fields)
+
+        for field in fields:
+            reserved_padding += self.padding_dict[field]
+
+        # Set message padding
+        self.padding_dict['message'] = self.columns - reserved_padding
 
         self._configured = True
+
+    def return_padded_content(self, header, content):
+        # Find the fields present
+        fields = [s for s in self.padding_dict if s in header]
+        # Add the padding for each field
+        padding = 0
+        for field in fields:
+            padding += self.padding_dict[field]
+
+            # # Calculate length of any other strings in format
+            # hc = header[:]
+            # if '{' in header:
+            #     hc = hc.replace('{', '')
+            #     hc = hc.replace('}', '')
+            # for field in fields:
+            #     hc = hc.replace(field, '')
+
+        print(fields, padding)
+        # textwrap the results
+        content_list = textwrap.wrap(content, padding, break_long_words=True)
+        return content_list
 
     def format(self, record):
 
         show_level_name = 'levelname' in self._fmt
 
         s = super(TMFormatter, self).format(record)
+        if not self._configured:
+            self.set_padding(record, s)
 
         if divider_flag in s:
             s = self.columns * '-'
             return s
 
         # If we don't have the time padding, figure it out.
-        if not self.time_padding:
-            sections = [s.strip() for s in self._fmt.split(self.separator)]
-            chunks = [chunk.strip() for chunk in s.split(self.separator)]
-            for section, message in zip(sections, chunks):
-                # print(f'{section}: {message}')
-                # Length of time string will be uniform so adaptively read it.
-                if 'asctime' in section:
-                    self.time_padding = len(message) + 2
+        # if not self.time_padding:
+        #     sections = [s.strip() for s in self._fmt.split(self.separator)]
+        #     chunks = [chunk.strip() for chunk in s.split(self.separator)]
+        #     for section, message in zip(sections, chunks):
+        #         # print(f'{section}: {message}')
+        #         # Length of time string will be uniform so adaptively read it.
+        #         if 'asctime' in section:
+        #             self.time_padding = len(message) + 2
 
         # if '\nTraceback (most recent call last)' in s:
         #     print(s)
