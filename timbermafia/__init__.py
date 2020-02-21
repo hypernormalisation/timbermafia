@@ -69,11 +69,11 @@ def set_config(**kwargs):
             raise AttributeError(f'Unknown argument {key}')
 
     # Check the config is valid.
-    columns = temp_dict.get('columns', _config.get('columns'))
-    caller_padding = temp_dict.get('caller_padding', _config.get('caller_padding'))
-    if columns < caller_padding:
-        raise ValueError(f'Width ({columns}) must be greater'
-                         f' than caller padding ({caller_padding}')
+    # columns = temp_dict.get('columns', _config.get('columns'))
+    # caller_padding = temp_dict.get('caller_padding', _config.get('caller_padding'))
+    # if columns < caller_padding:
+    #     raise ValueError(f'Width ({columns}) must be greater'
+    #                      f' than caller padding ({caller_padding}')
 
     # Update
     _config.update(temp_dict)

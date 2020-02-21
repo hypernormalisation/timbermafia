@@ -89,6 +89,10 @@ class TMFormatter(logging.Formatter):
         # Set message padding
         self.padding_dict['message'] = self.columns - reserved_padding
 
+        # Set levelname padding
+        self.padding_dict['levelname'] = self.levelname_padding
+
+        # Only run this once
         self._configured = True
 
     def return_padded_content(self, header, content):
@@ -112,32 +116,62 @@ class TMFormatter(logging.Formatter):
         content_list = textwrap.wrap(content, padding, break_long_words=True)
         return content_list
 
+    def pad(self, header, content):
+        """Function to take the individual output segments and pad them."""
+        fields = [s for s in self.padding_dict if '{' + s + '}' in header]
+        # Add the padding for each field
+        padding = 0
+        for field in fields:
+            padding += self.padding_dict[field]
+        # textwrap the results
+        content_list = textwrap.wrap(content, padding, break_long_words=True)
+        # print(fields, padding)
+        return content_list, padding
+
+    def get_output_dict(self, partial_format_string):
+        chunks = [chunk.strip() for chunk in partial_format_string.split(self.separator)]
+        sections = [s.strip() for s in self._fmt.split(self.separator)]
+        contents = {'max_lines': 0}
+        for i, (s, c) in enumerate(zip(sections, chunks)):
+            s_list, padding = self.pad(s, c)
+            n_lines = len(s_list)
+            if contents['max_lines'] < n_lines:
+                contents['max_lines'] = n_lines
+            contents[i] = {'line_array': s_list, 'padding': padding}
+        return contents
+
+    def output_dict_to_str(self, contents):
+        complete_s = ''
+        max_lines = contents.pop('max_lines')
+        segments = len(contents)
+        for i in range(max_lines):
+            for j in range(len(contents)):
+                results = contents[j]
+                try:
+                    complete_s += results['line_array'][i].rjust(results['padding'])
+                except IndexError:
+                    complete_s += ' ' * results['padding']
+                complete_s += f' {self.separator}'
+                # Don't add space after final delimiter
+                if j != segments - 1:
+                    complete_s += ' '
+            if i != max_lines - 1:
+                complete_s += '\n'
+        return complete_s
+
     def format(self, record):
 
-        show_level_name = 'levelname' in self._fmt
-
-        s = super(TMFormatter, self).format(record)
+        partial_format_string = super(TMFormatter, self).format(record)
         if not self._configured:
-            self.set_padding(record, s)
+            self.set_padding(record, partial_format_string)
 
-        if divider_flag in s:
-            s = self.columns * '-'
-            return s
+        if divider_flag in partial_format_string:
+            return self.columns * '-'
 
-        # If we don't have the time padding, figure it out.
-        # if not self.time_padding:
-        #     sections = [s.strip() for s in self._fmt.split(self.separator)]
-        #     chunks = [chunk.strip() for chunk in s.split(self.separator)]
-        #     for section, message in zip(sections, chunks):
-        #         # print(f'{section}: {message}')
-        #         # Length of time string will be uniform so adaptively read it.
-        #         if 'asctime' in section:
-        #             self.time_padding = len(message) + 2
+        d = self.get_output_dict(partial_format_string)
+        s = self.output_dict_to_str(d)
+        return s
 
-        # if '\nTraceback (most recent call last)' in s:
-        #     print(s)
-
-        split_list = s.split(self.separator)
         # Find exceptions and remove them from the string, for separate handling.
         # if '\nTraceback (most recent call last)' in split_list[-1]:
         #     s = split_list[-1]
@@ -147,28 +181,28 @@ class TMFormatter(logging.Formatter):
         #     print(RED + exception_message + '\n')
 
         # Get the timestamp.
-        timestamp = split_list[0]
-        caller_name = self.set_caller_name(split_list[1])
-        print_statement = split_list[2]
+        # timestamp = split_list[0]
+        # caller_name = self.set_caller_name(split_list[1])
+        # print_statement = split_list[2]
 
         # Make a list of print_statements that need to be prepended
         # with the time and caller info.
         # Take off some characters because textwrap.wrap soft wraps.
-        s_list = textwrap.wrap(print_statement, self.message_padding - 3,
-                               break_long_words=True)
+        # s_list = textwrap.wrap(print_statement, self.message_padding - 3,
+        #                        break_long_words=True)
 
         # Now we need to construct each individual printout string from the time,
         # caller, and print info.
-        for index, printout in enumerate(s_list):
-            # If it's the first line, add the timestamp and caller.
-            if index == 0:
-                # pad the caller name to be the required length
-                caller_name = caller_name.rjust(self.caller_padding + 1)
-                the_string = timestamp + '| ' + caller_name + '|' + printout
-            else:
-                the_string = (len(timestamp) * ' ' + '| ' +
-                              ''.rjust(self.caller_padding + 1) + '| ' + printout)
-            s_list[index] = the_string
+        # for index, printout in enumerate(s_list):
+        #     # If it's the first line, add the timestamp and caller.
+        #     if index == 0:
+        #         # pad the caller name to be the required length
+        #         caller_name = caller_name.rjust(self.caller_padding + 1)
+        #         the_string = timestamp + '| ' + caller_name + '|' + printout
+        #     else:
+        #         the_string = (len(timestamp) * ' ' + '| ' +
+        #                       ''.rjust(self.caller_padding + 1) + '| ' + printout)
+        #     s_list[index] = the_string
 
-        s = '\n'.join(s_list).strip(" ")
-        return s
+        # partial_format_string = '\n'.join(s_list).strip(" ")
+        # return partial_format_string
