@@ -38,14 +38,6 @@ class TMFormatter(logging.Formatter):
     def levelname_padding(self):
         return len(max(list(logging._nameToLevel.keys()))) + 1
 
-    @property
-    def message_padding(self):
-        return self.columns - 30 - self.time_padding
-
-    @property
-    def caller_padding(self):
-        return 30
-
     def get_header(self, header):
         if self.config['style'] == '{':
             return '{' + header + '}'

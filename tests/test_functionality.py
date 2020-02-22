@@ -14,7 +14,10 @@ class MyClass(timbermafia.Logged):
     def status(self):
         self.log.info(f'logging from {self.__class__.__name__} in the function status')
 
-timbermafia.configure(palette='sensible', format='{asctime} | {levelname} | {name}.{funcName} | {message}')
+my_palette = 'sensible'
+if len(sys.argv) > 1:
+    my_palette = sys.argv[1]
+timbermafia.configure(palette=my_palette, format='{asctime} | {levelname} | {name}.{funcName} | {message}')
 timbermafia.add_handler(stream=sys.stdout, filename='/tmp/my.log')
 
 log = logging.getLogger(__name__)
