@@ -1,40 +1,36 @@
-import inspect
 import logging
-import sys
-import textwrap
-import functools
+import copy
 from logging import root
 from timbermafia.rainbow import RainbowStreamHandler, palette_dict
 from timbermafia.formatters import TMFormatter
 from timbermafia.utils import *
+from collections.abc import Iterable
 
 log = logging.getLogger(__name__)
 
-_valid_styles = ['default', 'test1']
+_valid_formatters = ['default']
 _valid_palettes = list(palette_dict.keys())
 
 _valid_configs = {
-    'timbermafia_style': _valid_styles,
+    'formatter': _valid_formatters,
     'palette': _valid_palettes,
     'monochrome': [0, 1, True, False],
 }
 
 _config = {
     # Handler settings
-    'stream': sys.stdout,
-    'filename': None,
     'level': logging.DEBUG,
 
     # Preset styles
-    'timbermafia_style': 'default',
-    'palette': 'neon',
+    'formatter': 'default',
+    'palette': 'sensible',
     'monochrome': False,
+    'bold': True,
 
     # Column and padding widths
     'columns': 120,
-    'name_padding': 12,
+    'name_padding': 10,
     'funcName_padding': 13,
-    # 'caller_padding': 25,
     'module_padding': 25,
     'pathname_padding': 40,
     'lineNo_padding': 4,
@@ -43,14 +39,15 @@ _config = {
 
     # Default formats
     'format': '{asctime} | {name}.{funcName} | {message}',
-    'file_format': '{asctime} | {levelname} | {name}.{funcName} | {message}',
+    # 'file_format': '{asctime} | {levelname} | {name}.{funcName} | {message}',
     'time_format': '%H:%M:%S',
     'style': '{',
     'separator': '|',
+    'truncate': 'funcName',
 }
 
 
-def set_config(**kwargs):
+def configure(**kwargs):
     temp_dict = {}
     for key, val in kwargs.items():
         if key in _config:
@@ -66,16 +63,8 @@ def set_config(**kwargs):
 
         # Intercept unknown args
         else:
-            raise AttributeError(f'Unknown argument {key}')
+            raise ValueError(f'Unknown argument: {key}')
 
-    # Check the config is valid.
-    # columns = temp_dict.get('columns', _config.get('columns'))
-    # caller_padding = temp_dict.get('caller_padding', _config.get('caller_padding'))
-    # if columns < caller_padding:
-    #     raise ValueError(f'Width ({columns}) must be greater'
-    #                      f' than caller padding ({caller_padding}')
-
-    # Update
     _config.update(temp_dict)
 
 
@@ -90,44 +79,71 @@ def enhance(log):
         setattr(log, f'h{level}', headed_log(func=func))
 
 
-def configure_root_logger(**kwargs):
-    """Function to configure the root logger in logging, as for logging.basicConfig"""
-    # Reset handlers
-    force = kwargs.get('force', True)
-    if force:
+def add_handler(**kwargs):
+    """
+    Configure one or more handlers.
+    """
+
+    # Reset handlers on request
+    clear = kwargs.get('clear', False)
+    if clear:
         for h in root.handlers[:]:
             root.removeHandler(h)
             h.close()
 
-    stream_formatter = TMFormatter(_config['format'], _config['time_format'],
-                                   config=_config, style=_config['style'])
-    file_formatter = TMFormatter(_config['file_format'], _config['time_format'],
-                                 config=_config, style=_config['style'])
+    c = copy.deepcopy(_config)
+    formatter = TMFormatter(c['format'], c['time_format'],
+                            config=c, style=c['style'])
+
+    user_formatter = kwargs.get('formatter')
+    if user_formatter:
+        if not isinstance(user_formatter, logging.Formatter):
+            raise ValueError('formatter must be a logging.Formatter based object')
+        formatter = user_formatter
 
     ###################################################################################
     # Configure handlers
     ###################################################################################
     handlers = []
+
+    # If given get user handlers
+    user_handlers = kwargs.get('handlers')
+    if user_handlers:
+        if not isinstance(user_handlers, Iterable):
+            user_handlers = [user_handlers]
+        for h in user_handlers:
+            if not isinstance(h, logging.Handler):
+                raise ValueError('handlers must be a logging.Handler object or iterable'
+                                 'of logging.Handler objects')
+            h.setFormatter(formatter)
+            handlers.append(h)
+
+    # Log level
+    level = kwargs.get('level', _config['level'])
+
     # Configure stream handler if required.
-    if _config['stream']:
+    stream = kwargs.get('stream')
+    if stream:
         if not _config['monochrome']:
-            s = RainbowStreamHandler(stream=_config['stream'],
-                                     palette=_config['palette'])
+            s = RainbowStreamHandler(stream=stream,
+                                     config=c)
         else:
-            s = logging.StreamHandler(stream=_config['stream'])
-        s.setFormatter(stream_formatter)
+            s = logging.StreamHandler(stream=stream)
+        s.setFormatter(formatter)
         handlers.append(s)
 
     # Configure file handler if required.
-    if _config['filename']:
-        f = logging.FileHandler(_config['filename'])
-        f.setFormatter(file_formatter)
+    filename = kwargs.get('filename')
+    if filename:
+        f = logging.FileHandler(filename)
+        f.setFormatter(formatter)
         handlers.append(f)
 
     ###################################################################################
     # Final config
     ###################################################################################
     for h in handlers:
+        h.setLevel(level)
         root.addHandler(h)
 
     # Set level

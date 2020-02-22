@@ -1,23 +1,58 @@
 import logging
+from timbermafia.utils import LOCALFILE, URL
+
 
 fg = "\033[38;5;{}m"
 bg = "\033[48;5;{}m"
-reset = "\033[39m"
+# reset = "\033[39m"
+reset = "\033[0m"
 
+# Preset colour palettes using 8-bit ANSI codes.
+sensible = {
+    logging.DEBUG: (33, None, False),
+    logging.INFO: (255, None, False),
+    logging.WARNING: (214, None, False),
+    logging.ERROR: (196, None, True),
+    logging.FATAL: (64, 52, True),
+    LOCALFILE: (184, None, True),
+    URL: (44, None, True),
+}
 
-# Preset colour palettes
-neon = {
-    logging.DEBUG: (44, None),
-    logging.INFO: (15, None),
-    logging.WARNING: (214, None),
-    logging.ERROR: (196, None),
-    logging.FATAL: (196, None),
-    'file': (184, None),
-    'url': (201, None),
+forest = {
+    logging.DEBUG: (22, None, False),
+    logging.INFO: (2, None, False),
+    logging.WARNING: (184, None, False),
+    logging.ERROR: (95, None, True),
+    logging.FATAL: (0, 95, True),
+    LOCALFILE: (12, None, True),
+    URL: (31, None, True),
+}
+
+ocean = {
+    logging.DEBUG: (27, None, False),
+    logging.INFO: (45, None, False),
+    logging.WARNING: (47, None, False),
+    logging.ERROR: (226, None, True),
+    logging.FATAL: (226, 18, True),
+    LOCALFILE: (7, None, True),
+    URL: (7, None, True),
+}
+
+synth = {
+    logging.DEBUG: (63, None, False),
+    logging.INFO: (165, None, False),
+    logging.WARNING: (190, None, False),
+    logging.ERROR: (160, None, True),
+    logging.FATAL: (44, 57, True),
+    LOCALFILE: (7, None, True),
+    URL: (51, None, True),
 }
 
 palette_dict = {
-    'neon': neon,
+    'sensible': sensible,
+    'forest': forest,
+    'synth': synth,
+    'ocean': ocean,
 }
 
 
@@ -30,7 +65,9 @@ class RainbowStreamHandler(logging.StreamHandler):
     """
     def __init__(self, *args, **kwargs):
         super().__init__()
-        colour_map_key = kwargs.get('palette')
+        config = kwargs.get('config')
+        colour_map_key = config['palette']
+        self.config = config
         self.level_map = palette_dict.get(colour_map_key)
 
     def istty(self):
@@ -63,8 +100,11 @@ class RainbowStreamHandler(logging.StreamHandler):
         else:
             levelno = record.levelno
         if levelno in self.level_map:
-            fg_color, bg_color = self.level_map[levelno]
+            fg_color, bg_color, bold = self.level_map[levelno]
             parameters = []
+            if bold:
+                if self.config['bold']:
+                    parameters.append('\033[1m')
             if bg_color:
                 parameters.append(bg.format(bg_color))
             if fg_color:

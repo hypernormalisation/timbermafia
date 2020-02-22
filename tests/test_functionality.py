@@ -9,18 +9,23 @@ lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
         "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia " \
         "deserunt mollit anim id est laborum. "
 
-timbermafia.configure_root_logger(
-    style='test1', stream=sys.stdout, filename='/tmp/test.log'
-)
+
+class MyClass(timbermafia.Logged):
+    def status(self):
+        self.log.info(f'logging from {self.__class__.__name__} in the function status')
+
+timbermafia.configure(palette='sensible', format='{asctime} | {levelname} | {name}.{funcName} | {message}')
+timbermafia.add_handler(stream=sys.stdout, filename='/tmp/my.log')
 
 log = logging.getLogger(__name__)
 
-log.hinfo('Test of timbermafia logging')
+log.hinfo('Demo of timbermafia logging')
 log.info(lorem)
-log.debug('Some debug output with a url: www.google.com')
+m = MyClass()
+m.status()
+log.debug('Some debug output with a url: www.github.com')
 log.warning('Some warning with a local file: /tmp/some.db')
-print('I should have no colour.')
-
-# RED = "\033[38;5;203m"
-# ORANGE = "\033[38;5;214m"
-# print(RED + 'some red text ' + ORANGE + 'some other text')
+# log.herror('I am an error, oh no!')
+log.error('Here is an error.')
+log.fatal('Fatal error encountered')
+# log.critical('Critical error encountered')
