@@ -13,7 +13,7 @@ sensible = {
     logging.INFO: (255, None, False),
     logging.WARNING: (214, None, False),
     logging.ERROR: (196, None, True),
-    logging.FATAL: (64, 52, True),
+    logging.FATAL: (40, 52, True),
     LOCALFILE: (184, None, True),
     URL: (44, None, True),
 }

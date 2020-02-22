@@ -9,6 +9,16 @@ class TMFormatter(logging.Formatter):
     def __init__(self, *args, **kwargs):
         """Store some settings that cannot be adaptively figured out."""
         self.config = kwargs.pop('config')
+        self.jl = [self.get_header(s) for s in self.config['justify_left']]
+        self.jr = [self.get_header(s) for s in self.config['justify_right']]
+        self.jc = [self.get_header(s) for s in self.config['justify_center']]
+
+        self.just_map = {
+            'left': str.ljust,
+            'right': str.rjust,
+            'center': str.center,
+        }
+
         # Isolate padding settings.
         self.padding_dict = {k.replace('_padding', ''): v for k, v in self.config.items()
                              if ('padding' in k)}
@@ -36,30 +46,9 @@ class TMFormatter(logging.Formatter):
     def caller_padding(self):
         return 30
 
-    # def set_caller_name(self, my_name):
-    #     """
-    #     A function to take the caller string (the bit in the log printout
-    #     which tells you where the call was made) and format it, to make sure
-    #     it fits the rest of the printout.
-    #     """
-    #     # First of all, if we are running a header, return an empty string.
-    #     if 'timbermafia_decorator_divider' in my_name:
-    #         return ''
-    #     # If any unhelpful terms appear chuck them.
-    #     terms_to_remove = ['.<module>']  # , '.__init__']
-    #
-    #     # Remove any leading ' root.' for class logs
-    #     if my_name.startswith(' root.'):
-    #         my_name = my_name[6:]
-    #
-    #     for term in terms_to_remove:
-    #         if term in my_name:
-    #             my_name = my_name.replace(term, '')
-    #
-    #     # If there is enough room for the full caller designation, return it.
-    #     if len(my_name) <= self.caller_padding:
-    #         return my_name
-    #     return '...' + my_name[-self.caller_padding + 2:]
+    def get_header(self, header):
+        if self.config['style'] == '{':
+            return '{' + header + '}'
 
     def set_padding(self, record, s):
         """
@@ -81,7 +70,6 @@ class TMFormatter(logging.Formatter):
 
         # Set message padding, i.e. the rest of the space
         fields = [s for s in self.padding_dict if s in self._fmt]
-        # print(fields)
 
         # Space for other output
         # Separator + 2 spaces for each chunk, plus final separator
@@ -91,7 +79,6 @@ class TMFormatter(logging.Formatter):
             reserved_padding += self.padding_dict[field]
 
         # Set message padding
-        # print(self.columns, reserved_padding)
         self.padding_dict['message'] = self.columns - reserved_padding
 
         # Only run this once
@@ -105,7 +92,6 @@ class TMFormatter(logging.Formatter):
         for field in fields:
             padding += self.padding_dict[field]
 
-        # print(fields, padding)
         # textwrap the results
         content_list = textwrap.wrap(content, padding, break_long_words=True)
         return content_list
@@ -115,7 +101,6 @@ class TMFormatter(logging.Formatter):
         """Function to clean extraneous info from the 'name' field of LogRecords."""
         terms_to_remove = ['.<module>']
         # Remove any leading ' root.' for class logs
-        # print('content:', content)
         if content.startswith('root.'):
             content = content[5:]
 
@@ -132,8 +117,7 @@ class TMFormatter(logging.Formatter):
             padding += self.padding_dict[field]
 
         # If dealing with the 'name' field, remove any excess output.
-        # print(header, content)
-        if ('{' + 'name' + '}') in header:
+        if (self.get_header('name')) in header:
             content = self.clean_name(content)
 
         # If any of the components are to be truncated, do so for this content.
@@ -144,10 +128,10 @@ class TMFormatter(logging.Formatter):
 
         # textwrap the results
         content_list = textwrap.wrap(content, padding, break_long_words=True)
-        # print(fields, padding)
         return content_list, padding
 
     def get_output_dict(self, partial_format_string):
+        """Generate a dict containing line arrays using the specified paddings."""
         chunks = [chunk.strip() for chunk in partial_format_string.split(self.separator)]
         sections = [s.strip() for s in self._fmt.split(self.separator)]
         contents = {'max_lines': 0}
@@ -156,10 +140,11 @@ class TMFormatter(logging.Formatter):
             n_lines = len(s_list)
             if contents['max_lines'] < n_lines:
                 contents['max_lines'] = n_lines
-            contents[i] = {'line_array': s_list, 'padding': padding}
+            contents[i] = {'line_array': s_list, 'padding': padding, 'section': s}
         return contents
 
     def output_dict_to_str(self, contents):
+        """Convert the dict containing the line arrays to a final string."""
         complete_s = ''
         max_lines = contents.pop('max_lines')
         segments = len(contents)
@@ -168,7 +153,18 @@ class TMFormatter(logging.Formatter):
             for j in range(len(contents)):
                 results = contents[j]
                 try:
-                    complete_s += results['line_array'][i].rjust(results['padding'])
+                    # Figure out how to justify this output.
+                    section = results['section']
+                    just = self.config['justify_default']
+                    if section in self.jl:
+                        complete_s += results['line_array'][i].ljust(results['padding'])
+                    elif section in self.jr:
+                        complete_s += results['line_array'][i].rjust(results['padding'])
+                    elif section in self.jc:
+                        complete_s += results['line_array'][i].center(results['padding'])
+                    else:
+                        complete_s += self.just_map[just](results['line_array'][i],
+                                                          results['padding'])
                 except IndexError:
                     complete_s += ' ' * results['padding']
                 complete_s += f' {self.separator}'
@@ -180,13 +176,13 @@ class TMFormatter(logging.Formatter):
         return complete_s
 
     def build_header(self, record):
+        """Build a center justified title."""
         title = record.getMessage().center(self.columns - 2)
         return self.separator + title + self.separator
 
     def format(self, record):
 
         partial_format_string = super(TMFormatter, self).format(record)
-
         # If the header function is called, make a title.
         if divider_flag in partial_format_string:
             return self.columns * '-'

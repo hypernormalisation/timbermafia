@@ -1,4 +1,5 @@
 import logging
+import shutil
 import copy
 from logging import root
 from timbermafia.rainbow import RainbowStreamHandler, palette_dict
@@ -15,20 +16,27 @@ _valid_configs = {
     'formatter': _valid_formatters,
     'palette': _valid_palettes,
     'monochrome': [0, 1, True, False],
+    'justify': ['left', 'right', 'center']
 }
+
+t_size = shutil.get_terminal_size()
 
 _config = {
     # Handler settings
     'level': logging.DEBUG,
 
-    # Preset styles
+    # Preset styles and settings
     'formatter': 'default',
     'palette': 'sensible',
     'monochrome': False,
     'bold': True,
+    'justify_default': 'right',
+    'justify_left': ['message'],
+    'justify_right': [],
+    'justify_center': ['levelname'],
 
     # Column and padding widths
-    'columns': 120,
+    'columns': t_size.columns,
     'name_padding': 10,
     'funcName_padding': 13,
     'module_padding': 25,
@@ -39,11 +47,10 @@ _config = {
 
     # Default formats
     'format': '{asctime} | {name}.{funcName} | {message}',
-    # 'file_format': '{asctime} | {levelname} | {name}.{funcName} | {message}',
     'time_format': '%H:%M:%S',
     'style': '{',
     'separator': '|',
-    'truncate': 'funcName',
+    'truncate': ['funcName'],
 }
 
 
