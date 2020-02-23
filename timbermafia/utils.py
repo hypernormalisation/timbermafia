@@ -1,5 +1,5 @@
 divider_flag = 'ab9367b3-d977-44ec-bce7-fef40aa4428d'
-
+header_flag = 'timbermafia_header_04ce0a20e181'
 LOCALFILE = 'file'
 URL = 'url'
 
@@ -16,11 +16,12 @@ def run_from_ipython():
     except NameError:
         return False
 
-
-def headed_log(func):
-    """A decorator for header breaks in stdout."""
-    def timbermafia_decorator_divider(self, *args, **kwargs):
-        func(divider())
-        func(*args, **kwargs)
-        func(divider())
-    return timbermafia_decorator_divider
+#
+# def headed_log(func):
+#     """A decorator for header breaks in stdout."""
+#     def timbermafia_decorator_divider(self, *args, **kwargs):
+#         print(*args)
+#         self.func(divider())
+#         self.func(*args, **kwargs)
+#         self.func(divider())
+#     return timbermafia_decorator_divider

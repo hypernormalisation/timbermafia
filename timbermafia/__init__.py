@@ -1,7 +1,7 @@
 import logging
 import shutil
 import copy
-from logging import root
+# from logging import root
 from timbermafia.rainbow import RainbowStreamHandler, palette_dict
 from timbermafia.formatters import TMFormatter
 from timbermafia.utils import *
@@ -33,7 +33,7 @@ _config = {
     'justify_default': 'right',
     'justify_left': ['message'],
     'justify_right': [],
-    'justify_center': ['levelname'],
+    'justify_center': [],
 
     # Column and padding widths
     'columns': t_size.columns,
@@ -52,6 +52,10 @@ _config = {
     'separator': '|',
     'truncate': ['funcName'],
 }
+
+
+# def header(message):
+
 
 
 def configure(**kwargs):
@@ -75,28 +79,28 @@ def configure(**kwargs):
     _config.update(temp_dict)
 
 
-def enhance(log):
-    levels = []
-    for level_name in logging._nameToLevel.keys():
-        if level_name != 'NOTSET':
-            levels.append(level_name.lower())
-    levels = set(levels)
-    funcs = [getattr(root, level) for level in levels]
-    for func, level in zip(funcs, levels):
-        setattr(log, f'h{level}', headed_log(func=func))
+def enhance(l):
+    """Function to add a header function to the Logger class."""
+    def timbermafia_header_04ce0a20e181(self, msg):
+        self.info(divider())
+        self.info(msg)
+        self.info(divider())
+    l.header = timbermafia_header_04ce0a20e181
+
+    # levels = []
+    # for level_name in logging._nameToLevel.keys():
+    #     if level_name != 'NOTSET':
+    #         levels.append(level_name.lower())
+    # levels = set(levels)
+    # funcs = [getattr(log, level) for level in levels]
+    # for func, level in zip(funcs, levels):
+    #     setattr(log, f'h{level}', headed_log(func=func))
 
 
 def add_handler(**kwargs):
     """
     Configure one or more handlers.
     """
-
-    # Reset handlers on request
-    clear = kwargs.get('clear', False)
-    if clear:
-        for h in root.handlers[:]:
-            root.removeHandler(h)
-            h.close()
 
     c = copy.deepcopy(_config)
     formatter = TMFormatter(c['format'], c['time_format'],
@@ -147,17 +151,29 @@ def add_handler(**kwargs):
         handlers.append(f)
 
     ###################################################################################
-    # Final config
+    # Logger config
     ###################################################################################
+    log_name = kwargs.get('log_name', '')
+    l = logging.getLogger(log_name)
+
+    # Reset handlers on request
+    clear = kwargs.get('clear', False)
+    if clear:
+        for h in l.handlers[:]:
+            l.removeHandler(h)
+            h.close()
+
     for h in handlers:
         h.setLevel(level)
-        root.addHandler(h)
+        l.addHandler(h)
 
     # Set level
-    root.setLevel(_config['level'])
+    l.setLevel(level)
 
-    # Enhance the root log
-    enhance(logging.Logger)
+    # Enhance the Logger class
+    enhance_logger = kwargs.get('enhance_logger', True)
+    if enhance_logger and not hasattr(logging.Logger, 'header'):
+        enhance(logging.Logger)
 
 
 class Logged:

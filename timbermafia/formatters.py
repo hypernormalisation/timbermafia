@@ -178,7 +178,7 @@ class TMFormatter(logging.Formatter):
         # If the header function is called, make a title.
         if divider_flag in partial_format_string:
             return self.columns * '-'
-        if 'timbermafia_decorator_divider' in partial_format_string:
+        if header_flag in partial_format_string:
             return self.build_header(record)
 
         if not self._configured:

@@ -9,8 +9,7 @@ setup(
     name='timbermafia',
     version='0.0.1',
 
-    description=('Python module supplying pre-made, '
-                 'customisable welcome screens and logging formats.'),
+    description="Make python's logging work for you.",
 
     long_description=long_description,
     long_description_content_type='text/markdown',
