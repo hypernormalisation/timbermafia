@@ -9,18 +9,19 @@ from collections.abc import Iterable
 
 log = logging.getLogger(__name__)
 
+_valid_for_bools = [0, 1, True, False]
 _valid_formatters = ['default']
 _valid_palettes = list(palette_dict.keys())
-
 _valid_configs = {
     'formatter': _valid_formatters,
     'palette': _valid_palettes,
-    'monochrome': [0, 1, True, False],
+    'monochrome': _valid_for_bools,
     'justify': ['left', 'right', 'center']
 }
 
 t_size = shutil.get_terminal_size()
 
+# Defaults for timbermafia.config
 _config = {
     # Handler settings
     'level': logging.DEBUG,
@@ -53,29 +54,44 @@ _config = {
     'truncate': ['funcName'],
 }
 
+# Defaults for add_handler
+_config2 = {
+    'filename': None,
+    'stream': None,
+    'log_name': None,
+    'level': logging.DEBUG,
+    'handlers': None,
+    'clear': False,
+    'enhance_logger': True,
+}
 
-# def header(message):
 
-
-
-def configure(**kwargs):
-    temp_dict = {}
+def check_kwargs(kwargs, func_name):
+    """Function to check arguments for configuration."""
+    c = None
+    if func_name == 'configure':
+        c = _config
+    elif func_name == 'add_handler':
+        c = _config2
     for key, val in kwargs.items():
-        if key in _config:
-
+        if key in c:
             # If only pre-set configs allowed, check them
             if key in _valid_configs:
                 if val not in _valid_configs[key]:
                     s = f'Value for {key}: {val}, must be ' \
                         f'one of {", ".join(_valid_configs[key])}'
                     raise ValueError(s)
-
-            temp_dict[key] = val
-
         # Intercept unknown args
         else:
             raise ValueError(f'Unknown argument: {key}')
 
+
+def configure(**kwargs):
+    """The user interface to setting timbermafia configuration."""
+    temp_dict = {}
+    check_kwargs(kwargs, 'configure')
+    for key, val in kwargs.items():
+        temp_dict[key] = val
     _config.update(temp_dict)
 
 
@@ -87,21 +103,12 @@ def enhance(l):
         self.info(divider())
     l.header = timbermafia_header_04ce0a20e181
 
-    # levels = []
-    # for level_name in logging._nameToLevel.keys():
-    #     if level_name != 'NOTSET':
-    #         levels.append(level_name.lower())
-    # levels = set(levels)
-    # funcs = [getattr(log, level) for level in levels]
-    # for func, level in zip(funcs, levels):
-    #     setattr(log, f'h{level}', headed_log(func=func))
-
 
 def add_handler(**kwargs):
     """
     Configure one or more handlers.
     """
-
+    check_kwargs(kwargs, 'add_handler')
     c = copy.deepcopy(_config)
     formatter = TMFormatter(c['format'], c['time_format'],
                             config=c, style=c['style'])
@@ -118,7 +125,7 @@ def add_handler(**kwargs):
     handlers = []
 
     # If given get user handlers
-    user_handlers = kwargs.get('handlers')
+    user_handlers = kwargs.get('handlers', _config2['handlers'])
     if user_handlers:
         if not isinstance(user_handlers, Iterable):
             user_handlers = [user_handlers]
@@ -133,7 +140,7 @@ def add_handler(**kwargs):
     level = kwargs.get('level', _config['level'])
 
     # Configure stream handler if required.
-    stream = kwargs.get('stream')
+    stream = kwargs.get('stream', _config2['stream'])
     if stream:
         if not _config['monochrome']:
             s = RainbowStreamHandler(stream=stream,
@@ -144,7 +151,7 @@ def add_handler(**kwargs):
         handlers.append(s)
 
     # Configure file handler if required.
-    filename = kwargs.get('filename')
+    filename = kwargs.get('filename', _config2['filename'])
     if filename:
         f = logging.FileHandler(filename)
         f.setFormatter(formatter)
@@ -153,11 +160,11 @@ def add_handler(**kwargs):
     ###################################################################################
     # Logger config
     ###################################################################################
-    log_name = kwargs.get('log_name', '')
+    log_name = kwargs.get('log_name', _config2['log_name'])
     l = logging.getLogger(log_name)
 
     # Reset handlers on request
-    clear = kwargs.get('clear', False)
+    clear = kwargs.get('clear', _config2['clear'])
     if clear:
         for h in l.handlers[:]:
             l.removeHandler(h)
@@ -171,7 +178,7 @@ def add_handler(**kwargs):
     l.setLevel(level)
 
     # Enhance the Logger class
-    enhance_logger = kwargs.get('enhance_logger', True)
+    enhance_logger = kwargs.get('enhance_logger', _config2['enhance_logger'])
     if enhance_logger and not hasattr(logging.Logger, 'header'):
         enhance(logging.Logger)
 

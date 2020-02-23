@@ -18,12 +18,22 @@ sensible = {
     URL: (44, None, True),
 }
 
+sensible_light = {
+    logging.DEBUG: (18, None, False),
+    logging.INFO: (232, None, False),
+    logging.WARNING: (130, None, False),
+    logging.ERROR: (196, None, True),
+    logging.FATAL: (40, 52, True),
+    LOCALFILE: (165, None, True),
+    URL: (44, None, True),
+}
+
 forest = {
     logging.DEBUG: (22, None, False),
-    logging.INFO: (2, None, False),
-    logging.WARNING: (184, None, False),
-    logging.ERROR: (95, None, True),
-    logging.FATAL: (0, 95, True),
+    logging.INFO: (34, None, False),
+    logging.WARNING: (202, None, False),
+    logging.ERROR: (94, None, True),
+    logging.FATAL: (0, 94, True),
     LOCALFILE: (12, None, True),
     URL: (31, None, True),
 }
@@ -48,11 +58,23 @@ synth = {
     URL: (51, None, True),
 }
 
+dawn = {
+    logging.DEBUG: (198, None, False),
+    logging.INFO: (208, None, False),
+    logging.WARNING: (190, None, False),
+    logging.ERROR: (160, None, True),
+    logging.FATAL: (226, 52, True),
+    LOCALFILE: (7, None, True),
+    URL: (147, None, True),
+}
+
 palette_dict = {
     'sensible': sensible,
+    'sensible_light': sensible_light,
     'forest': forest,
     'synth': synth,
     'ocean': ocean,
+    'dawn': dawn,
 }
 
 
