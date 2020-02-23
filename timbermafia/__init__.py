@@ -116,7 +116,8 @@ def add_handler(**kwargs):
     user_formatter = kwargs.get('formatter')
     if user_formatter:
         if not isinstance(user_formatter, logging.Formatter):
-            raise ValueError('formatter must be a logging.Formatter based object')
+            raise ValueError('formatter must be a '
+                             'logging.Formatter based object')
         formatter = user_formatter
 
     ###################################################################################

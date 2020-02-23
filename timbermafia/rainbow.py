@@ -49,17 +49,17 @@ ocean = {
 }
 
 synth = {
-    logging.DEBUG: (63, None, False),
-    logging.INFO: (165, None, False),
-    logging.WARNING: (190, None, False),
-    logging.ERROR: (160, None, True),
+    logging.DEBUG: (51, None, False),
+    logging.INFO: (201, None, False),
+    logging.WARNING: (225, None, False),
+    logging.ERROR: (213, None, True),
     logging.FATAL: (44, 57, True),
     LOCALFILE: (7, None, True),
-    URL: (51, None, True),
+    URL: (63, None, True),
 }
 
 dawn = {
-    logging.DEBUG: (198, None, False),
+    logging.DEBUG: (200, None, False),
     logging.INFO: (208, None, False),
     logging.WARNING: (190, None, False),
     logging.ERROR: (160, None, True),
