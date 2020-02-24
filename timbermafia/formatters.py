@@ -61,7 +61,7 @@ class TMFormatter(logging.Formatter):
         return len(max(list(logging._nameToLevel.keys()))) + 1
 
     def get_header(self, header):
-        if self.config['style'] == '{':
+        if self.config['format_style'] == '{':
             return '{' + header + '}'
 
     def set_padding(self, record, chunks):

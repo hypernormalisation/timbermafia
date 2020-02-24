@@ -17,8 +17,7 @@ class MyClass(timbermafia.Logged):
 my_palette = 'sensible'
 if len(sys.argv) > 1:
     my_palette = sys.argv[1]
-timbermafia.configure(palette=my_palette, enclose=False, justify='right',
-                      show_separator=True,
+timbermafia.configure(palette=my_palette, style='minimalist',
                       format='{asctime} | {levelname} | {name}.{funcName} | {message}')
 timbermafia.add_handler(stream=sys.stdout, filename='/tmp/my.log')
 

@@ -1,7 +1,6 @@
 import logging
 import shutil
 import copy
-# from logging import root
 from timbermafia.rainbow import RainbowStreamHandler, RainbowFileHandler, palette_dict
 from timbermafia.formatters import TMFormatter
 from timbermafia.utils import *
@@ -9,21 +8,38 @@ from collections.abc import Iterable
 
 log = logging.getLogger(__name__)
 
+# Styles with preset configs
+style_map = {
+    'default': {},
+    'minimalist': {
+        'show_separator': False,
+        'enclose': False,
+        'format': '{asctime} | {name}.{funcName} | {message}',
+        'truncate': [],
+    },
+}
+
+min_mono = copy.deepcopy(style_map['minimalist'])
+min_mono['monochrome'] = True
+min_mono['format'] = '{asctime} | {levelname} | {name}.{funcName} | {message}'
+style_map['minimalist_mono'] = min_mono
+
+
 _valid_for_bools = [0, 1, True, False]
-_valid_formatters = ['default']
 _valid_palettes = list(palette_dict.keys())
 _valid_configs = {
-    'formatter': _valid_formatters,
     'palette': _valid_palettes,
     'monochrome': _valid_for_bools,
     'bold': _valid_for_bools,
     'enclose': _valid_for_bools,
     'show_separator': _valid_for_bools,
     'justify': ['left', 'right', 'center'],
-    'style': ['{'],
+    'format_style': ['{'],
+    'style': style_map.keys(),
 }
 
 t_size = shutil.get_terminal_size()
+
 
 # Defaults for timbermafia.config
 _config = {
@@ -31,11 +47,11 @@ _config = {
     'level': logging.DEBUG,
 
     # Preset styles and settings
-    'formatter': 'default',
+    'style': 'default',
     'palette': 'sensible',
     'monochrome': False,
     'bold': True,
-    'enclose': True,
+    'enclose': False,
     'justify': 'right',
     'justify_left': ['message'],
     'justify_right': [],
@@ -44,8 +60,8 @@ _config = {
 
     # Column and padding widths
     'columns': t_size.columns,
-    'name_padding': 10,
-    'funcName_padding': 13,
+    'name_padding': 15,
+    'funcName_padding': 15,
     'module_padding': 25,
     'pathname_padding': 40,
     'lineNo_padding': 4,
@@ -53,12 +69,14 @@ _config = {
     'threadName_padding': 10,
 
     # Default formats
-    'format': '{asctime} | {name}.{funcName} | {message}',
+    'format': '{asctime} | {levelname} | {name}.{funcName} | {message}',
     'time_format': '%H:%M:%S',
-    'style': '{',
+    'format_style': '{',  # this is what logging calls "style"
     'separator': '|',
     'truncate': ['funcName'],
 }
+
+_default_conf = copy.deepcopy(_config)
 
 # Defaults for add_handler
 _config2 = {
@@ -95,8 +113,17 @@ def check_kwargs(kwargs, func_name):
 
 def configure(**kwargs):
     """The user interface to setting timbermafia configuration."""
-    temp_dict = {}
     check_kwargs(kwargs, 'configure')
+    temp_dict = {}
+
+    # Get the style first if given, so we can reset the config
+    # and the user can customise styles easily.
+    style = kwargs.get('style')
+    if style:
+        _config.update(_default_conf)
+        for setting, value in style_map[style].items():
+            temp_dict[setting] = value
+
     for key, val in kwargs.items():
         temp_dict[key] = val
     _config.update(temp_dict)
@@ -117,8 +144,9 @@ def add_handler(**kwargs):
     """
     check_kwargs(kwargs, 'add_handler')
     c = copy.deepcopy(_config)
+
     formatter = TMFormatter(c['format'], c['time_format'],
-                            config=c, style=c['style'])
+                            config=c, style=c['format_style'])
 
     user_formatter = kwargs.get('formatter')
     if user_formatter:
