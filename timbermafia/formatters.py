@@ -12,7 +12,6 @@ class TMFormatter(logging.Formatter):
         self.jl = [self.get_header(s) for s in self.config['justify_left']]
         self.jr = [self.get_header(s) for s in self.config['justify_right']]
         self.jc = [self.get_header(s) for s in self.config['justify_center']]
-
         self.just_map = {
             'left': str.ljust,
             'right': str.rjust,
@@ -23,8 +22,17 @@ class TMFormatter(logging.Formatter):
         self.padding_dict = {k.replace('_padding', ''): v for k, v in self.config.items()
                              if ('padding' in k)}
         self._configured = False
+
+        # Do something hacky so that the generator logging.StrFormatStyle
+        # gets our format with the substituted unique dividers.
+        fmt_original = args[0]
+        fmt_tm = fmt_original.replace(self.separator, replacer_flag)
+        temp_args = list(args)
+        temp_args[0] = fmt_tm
+        args = tuple(temp_args)
         self.time_padding = None  # Will be filled adaptively
         super().__init__(*args, **kwargs)
+        self._fmt = fmt_original
 
     @property
     def columns(self):
@@ -35,6 +43,20 @@ class TMFormatter(logging.Formatter):
         return self.config['separator']
 
     @property
+    def show_separator(self):
+        return self.config['show_separator']
+
+    @property
+    def separator_insert(self):
+        if not self.show_separator:
+            return ''
+        return self.separator
+
+    @property
+    def enclose(self):
+        return self.config['enclose']
+
+    @property
     def levelname_padding(self):
         return len(max(list(logging._nameToLevel.keys()))) + 1
 
@@ -42,13 +64,13 @@ class TMFormatter(logging.Formatter):
         if self.config['style'] == '{':
             return '{' + header + '}'
 
-    def set_padding(self, record, s):
+    def set_padding(self, record, chunks):
         """
         Get any static padding lengths that can
         be found adaptively
         """
         sections = [s.strip() for s in self._fmt.split(self.separator)]
-        chunks = [chunk.strip() for chunk in s.split(self.separator)]
+        # chunks = [chunk.strip() for chunk in s.split(self.separator)]
 
         # Set timestamp padding
         if 'asctime' in self._fmt:
@@ -66,12 +88,17 @@ class TMFormatter(logging.Formatter):
         # Space for other output
         # Separator + 2 spaces for each chunk, plus final separator
         reserved_padding = 3 * len(chunks) + 1
+        if not self.show_separator:
+            reserved_padding = 2 * len(chunks) + 1
 
         for field in fields:
             reserved_padding += self.padding_dict[field]
 
         # Set message padding
-        self.padding_dict['message'] = self.columns - reserved_padding
+        message_padding = self.columns - reserved_padding
+        if not self.enclose:
+            message_padding += 4
+        self.padding_dict['message'] = message_padding
 
         # Only run this once
         self._configured = True
@@ -120,11 +147,12 @@ class TMFormatter(logging.Formatter):
 
         # textwrap the results
         content_list = textwrap.wrap(content, padding, break_long_words=True)
+        # print(content_list)
         return content_list, padding
 
-    def get_output_dict(self, partial_format_string):
+    def get_output_dict(self, chunks):
         """Generate a dict containing line arrays using the specified paddings."""
-        chunks = [chunk.strip() for chunk in partial_format_string.split(self.separator)]
+        # chunks = [chunk.strip() for chunk in partial_format_string.split(self.separator)]
         sections = [s.strip() for s in self._fmt.split(self.separator)]
         contents = {'max_lines': 0}
         for i, (s, c) in enumerate(zip(sections, chunks)):
@@ -140,14 +168,16 @@ class TMFormatter(logging.Formatter):
         complete_s = ''
         max_lines = contents.pop('max_lines')
         segments = len(contents)
+
         for i in range(max_lines):
-            complete_s += self.separator + ' '
             for j in range(len(contents)):
+                if j == 0 and self.enclose:
+                    complete_s += self.separator_insert + ' '
                 results = contents[j]
                 try:
                     # Figure out how to justify this output.
                     section = results['section']
-                    just = self.config['justify_default']
+                    just = self.config['justify']
                     if section in self.jl:
                         complete_s += results['line_array'][i].ljust(results['padding'])
                     elif section in self.jr:
@@ -159,12 +189,20 @@ class TMFormatter(logging.Formatter):
                                                           results['padding'])
                 except IndexError:
                     complete_s += ' ' * results['padding']
-                complete_s += f' {self.separator}'
+
+                complete_s += f' {self.separator_insert}'
                 # Don't add space after final delimiter
                 if j != segments - 1:
                     complete_s += ' '
+
+            # Trim separator as needed.
+            if not self.enclose:
+                to_trim = 1 + len(self.separator)
+                complete_s = complete_s[:-to_trim]
+            # Linebreak for all but the last line.
             if i != max_lines - 1:
                 complete_s += '\n'
+
         return complete_s
 
     def build_header(self, record):
@@ -173,8 +211,9 @@ class TMFormatter(logging.Formatter):
         return self.separator + title + self.separator
 
     def format(self, record):
-
         partial_format_string = super(TMFormatter, self).format(record)
+        record_components = partial_format_string.split(replacer_flag)
+        record_components = [x.lstrip().rstrip() for x in record_components]
         # If the header function is called, make a title.
         if divider_flag in partial_format_string:
             return self.columns * '-'
@@ -182,8 +221,9 @@ class TMFormatter(logging.Formatter):
             return self.build_header(record)
 
         if not self._configured:
-            self.set_padding(record, partial_format_string)
+            self.set_padding(record, record_components)
 
-        d = self.get_output_dict(partial_format_string)
+        d = self.get_output_dict(record_components)
+        # print(d)
         s = self.output_dict_to_str(d)
         return s

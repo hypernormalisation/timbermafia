@@ -16,7 +16,11 @@ _valid_configs = {
     'formatter': _valid_formatters,
     'palette': _valid_palettes,
     'monochrome': _valid_for_bools,
-    'justify': ['left', 'right', 'center']
+    'bold': _valid_for_bools,
+    'enclose': _valid_for_bools,
+    'show_separator': _valid_for_bools,
+    'justify': ['left', 'right', 'center'],
+    'style': ['{'],
 }
 
 t_size = shutil.get_terminal_size()
@@ -31,10 +35,12 @@ _config = {
     'palette': 'sensible',
     'monochrome': False,
     'bold': True,
-    'justify_default': 'right',
+    'enclose': True,
+    'justify': 'right',
     'justify_left': ['message'],
     'justify_right': [],
     'justify_center': [],
+    'show_separator': True,
 
     # Column and padding widths
     'columns': t_size.columns,
@@ -78,8 +84,9 @@ def check_kwargs(kwargs, func_name):
             # If only pre-set configs allowed, check them
             if key in _valid_configs:
                 if val not in _valid_configs[key]:
+                    vcs = [str(x) for x in _valid_configs[key]]
                     s = f'Value for {key}: {val}, must be ' \
-                        f'one of {", ".join(_valid_configs[key])}'
+                        f'one of {", ".join(vcs)}'
                     raise ValueError(s)
         # Intercept unknown args
         else:

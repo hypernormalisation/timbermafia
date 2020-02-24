@@ -17,7 +17,7 @@ class MyClass(timbermafia.Logged):
 my_palette = 'sensible'
 if len(sys.argv) > 1:
     my_palette = sys.argv[1]
-timbermafia.configure(palette=my_palette,
+timbermafia.configure(palette=my_palette, enclose=False, justify='right',
                       format='{asctime} | {levelname} | {name}.{funcName} | {message}')
 timbermafia.add_handler(stream=sys.stdout, filename='/tmp/my.log')
 
@@ -31,4 +31,5 @@ log.debug('Some debug output with a url: www.github.com')
 log.warning('Some warning with a local file: /tmp/some.db')
 log.error('Here is an error.')
 log.fatal('Fatal error encountered')
+log.info('Message containing separators like | @ $ etc are unaffected in messages')
 # log.critical('Critical error encountered')
