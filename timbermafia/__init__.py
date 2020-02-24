@@ -8,21 +8,63 @@ from collections.abc import Iterable
 
 log = logging.getLogger(__name__)
 
+t_size = shutil.get_terminal_size()
+
 # Styles with preset configs
 style_map = {
     'default': {},
+    'simple': {
+        'format': '{asctime} > {name}.{funcName} > {message}',
+        'enclose': False,
+        'truncate': [],
+        'justify': 'left',
+        'justify_right': [],
+        'time_format': '%d-%m-%Y %H:%M:%S',
+        'line_separator': '-',
+    },
     'minimalist': {
         'show_separator': False,
+        'sparse_separators': False,
         'enclose': False,
         'format': '{asctime} | {name}.{funcName} | {message}',
         'truncate': [],
+        'name_padding': 10,
+        'funcName_padding': 10,
+        'columns': int(t_size.columns * 1.),
     },
+    'boxed': {
+        'enclose': True,
+        'time_format': "%H:%M:%S",
+        'format': '{asctime} | {levelname} | {name}.{funcName} | {message}',
+        'show_separator': True,
+        'divide_lines': True,
+        'truncate': [],
+        'line_separator': '=',
+        'sparse_separators': False,
+    },
+    'jupyter': {
+        'bold': False,
+        'show_separator': False,
+        'enclose': False,
+        'format': '{asctime} | {name}.{funcName} | {message}',
+    },
+    'doublespace': {
+        'line_separator': ' ',
+        'divide_lines': True,
+        'sparse_separators': True,
+        'enclose': False,
+    }
 }
 
-min_mono = copy.deepcopy(style_map['minimalist'])
-min_mono['monochrome'] = True
-min_mono['format'] = '{asctime} | {levelname} | {name}.{funcName} | {message}'
-style_map['minimalist_mono'] = min_mono
+# Add monochrome styles
+mono_styles = {}
+for style in style_map:
+    d = copy.deepcopy(style_map[style])
+    d['monochrome'] = True
+    mono_styles[f'{style}_mono'] = d
+style_map.update(mono_styles)
+
+style_map['minimalist_mono']['format'] = '{asctime} | {levelname} | {name}.{funcName} | {message}'
 
 
 _valid_for_bools = [0, 1, True, False]
@@ -33,12 +75,14 @@ _valid_configs = {
     'bold': _valid_for_bools,
     'enclose': _valid_for_bools,
     'show_separator': _valid_for_bools,
+    'divide_lines': _valid_for_bools,
+    'clean_names': _valid_for_bools,
+    'sparse_separators': _valid_for_bools,
     'justify': ['left', 'right', 'center'],
     'format_style': ['{'],
     'style': style_map.keys(),
 }
 
-t_size = shutil.get_terminal_size()
 
 
 # Defaults for timbermafia.config
@@ -52,11 +96,19 @@ _config = {
     'monochrome': False,
     'bold': True,
     'enclose': False,
+    'show_separator': True,
+    'divide_lines': False,
+    'line_separator': '~',
+    'separator': '|',
+    'sparse_separators': True,
+    'clean_names': True,
+
+    # Justification options
     'justify': 'right',
     'justify_left': ['message'],
     'justify_right': [],
     'justify_center': [],
-    'show_separator': True,
+    'truncate': ['funcName'],
 
     # Column and padding widths
     'columns': t_size.columns,
@@ -65,15 +117,13 @@ _config = {
     'module_padding': 25,
     'pathname_padding': 40,
     'lineNo_padding': 4,
-    'thread_padding': 4,
+    'thread_padding': 15,
     'threadName_padding': 10,
 
     # Default formats
     'format': '{asctime} | {levelname} | {name}.{funcName} | {message}',
     'time_format': '%H:%M:%S',
     'format_style': '{',  # this is what logging calls "style"
-    'separator': '|',
-    'truncate': ['funcName'],
 }
 
 _default_conf = copy.deepcopy(_config)

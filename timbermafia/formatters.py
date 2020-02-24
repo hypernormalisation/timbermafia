@@ -53,6 +53,10 @@ class TMFormatter(logging.Formatter):
         return self.separator
 
     @property
+    def line_separator(self):
+        return self.config['line_separator']
+
+    @property
     def enclose(self):
         return self.config['enclose']
 
@@ -137,7 +141,8 @@ class TMFormatter(logging.Formatter):
 
         # If dealing with the 'name' field, remove any excess output.
         if (self.get_header('name')) in header:
-            content = self.clean_name(content)
+            if self.config['clean_names']:
+                content = self.clean_name(content)
 
         # If any of the components are to be truncated, do so for this content.
         truncate_list = [s for s in fields if s in self.config['truncate']]
@@ -161,6 +166,7 @@ class TMFormatter(logging.Formatter):
             if contents['max_lines'] < n_lines:
                 contents['max_lines'] = n_lines
             contents[i] = {'line_array': s_list, 'padding': padding, 'section': s}
+        # print(contents)
         return contents
 
     def output_dict_to_str(self, contents):
@@ -168,10 +174,16 @@ class TMFormatter(logging.Formatter):
         complete_s = ''
         max_lines = contents.pop('max_lines')
         segments = len(contents)
-
-        for i in range(max_lines):
+        # print(contents)
+        to_iter = max_lines
+        # if self.config['divide_lines']:
+        #     to_iter = max_lines + 1
+        for line_number in range(to_iter):
             for j in range(len(contents)):
                 if j == 0 and self.enclose:
+                    # if line_number != 0 and self.config['sparse_separators']:
+                    #     complete_s += '  '
+                    # else:
                     complete_s += self.separator_insert + ' '
                 results = contents[j]
                 try:
@@ -179,28 +191,50 @@ class TMFormatter(logging.Formatter):
                     section = results['section']
                     just = self.config['justify']
                     if section in self.jl:
-                        complete_s += results['line_array'][i].ljust(results['padding'])
+                        complete_s += results['line_array'][line_number].ljust(results['padding'])
                     elif section in self.jr:
-                        complete_s += results['line_array'][i].rjust(results['padding'])
+                        complete_s += results['line_array'][line_number].rjust(results['padding'])
                     elif section in self.jc:
-                        complete_s += results['line_array'][i].center(results['padding'])
+                        complete_s += results['line_array'][line_number].center(results['padding'])
                     else:
-                        complete_s += self.just_map[just](results['line_array'][i],
+                        complete_s += self.just_map[just](results['line_array'][line_number],
                                                           results['padding'])
                 except IndexError:
-                    complete_s += ' ' * results['padding']
+                    # if i == to_iter - 1:
+                    #     # complete_s = complete_s[:-1]
+                    #     complete_s += self.line_separator * (results['padding'])
+                    # else:
+                        complete_s += ' ' * results['padding']
 
-                complete_s += f' {self.separator_insert}'
-                # Don't add space after final delimiter
+                # if i != to_iter - 1:
+
+                #     if i != 1 and j < len(contents):
+                #         complete_s += '  '
+                # else:
+                if self.config['sparse_separators'] and \
+                        line_number > 0 and j != len(contents)-2:
+                    complete_s += '  '
+                    # print(len(contents))
+                else:
+                    complete_s += f' {self.separator_insert}'
+                #
                 if j != segments - 1:
                     complete_s += ' '
+                # else:
+
+                # Don't add space after final delimiter
 
             # Trim separator as needed.
             if not self.enclose:
                 to_trim = 1 + len(self.separator)
                 complete_s = complete_s[:-to_trim]
+
+            elif self.config['sparse_separators']:
+                complete_s = complete_s[:-1]
+                complete_s += self.separator_insert
+
             # Linebreak for all but the last line.
-            if i != max_lines - 1:
+            if line_number != to_iter - 1:
                 complete_s += '\n'
 
         return complete_s
@@ -210,13 +244,20 @@ class TMFormatter(logging.Formatter):
         title = record.getMessage().center(self.columns - 2)
         return self.separator + title + self.separator
 
+    @property
+    def line_separator_string(self):
+        s = self.line_separator * self.columns
+        s = s[:self.columns]
+        return s
+
     def format(self, record):
         partial_format_string = super(TMFormatter, self).format(record)
         record_components = partial_format_string.split(replacer_flag)
         record_components = [x.lstrip().rstrip() for x in record_components]
+
         # If the header function is called, make a title.
         if divider_flag in partial_format_string:
-            return self.columns * '-'
+            return self.line_separator_string
         if header_flag in partial_format_string:
             return self.build_header(record)
 
@@ -224,6 +265,9 @@ class TMFormatter(logging.Formatter):
             self.set_padding(record, record_components)
 
         d = self.get_output_dict(record_components)
-        # print(d)
         s = self.output_dict_to_str(d)
+
+        if self.config['divide_lines']:
+            s += '\n' + self.line_separator_string
+
         return s
