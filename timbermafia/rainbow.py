@@ -158,3 +158,83 @@ class RainbowStreamHandler(logging.StreamHandler):
                     parts[index] = self.colorize(part, 'url')
             message = " ".join(parts)
         return message
+
+
+class RainbowFileHandler(logging.FileHandler):
+    """
+    File handler with support for automatic colouring of text
+    depending on log levels, filepaths, URLs etc.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(args[0])
+        config = kwargs.get('config')
+        colour_map_key = config['palette']
+        self.config = config
+        self.level_map = palette_dict.get(colour_map_key)
+
+    # def istty(self):
+    #     isatty = getattr(self.stream, "isatty", None)
+    #     return isatty and isatty()
+    #
+    # def emit(self, record):
+    #     try:
+    #         message = self.format(record)
+    #         stream = self.stream
+    #         if not self.istty:
+    #             stream.write(message)
+    #         else:
+    #             self.output_colorized(message)
+    #         stream.write(getattr(self, "terminator", "\n"))
+    #         self.flush()
+    #     except (KeyboardInterrupt, SystemExit):
+    #         raise
+    #     except:
+    #         self.handleError(record)
+    #
+    # def output_colorized(self, message):
+    #     self.stream.write(message)
+
+    def colorize(self, message, record):
+        levelno = None
+        # print(record, isinstance(record, str))
+        if isinstance(record, str):
+            levelno = record
+        else:
+            levelno = record.levelno
+        if levelno in self.level_map:
+            fg_color, bg_color, bold = self.level_map[levelno]
+            parameters = []
+            if bold:
+                if self.config['bold']:
+                    parameters.append('\033[1m')
+            if bg_color:
+                parameters.append(bg.format(bg_color))
+            if fg_color:
+                parameters.append(fg.format(fg_color))
+            if parameters:
+                message = "".join(
+                    ("".join(parameters), message, reset)
+                )
+        return message
+
+    def format(self, record):
+        message = logging.StreamHandler.format(self, record)
+        if True:
+
+            # Colour all multi-line output.
+            parts = message.split("\n", 1)
+            for index, part in enumerate(parts):
+                parts[index] = self.colorize(part, record)
+            message = "\n".join(parts)
+
+            # File and URLs
+            parts = message.split(' ')
+            for index, part in enumerate(parts):
+                if not part:
+                    continue
+                if part[0] == '/':
+                    parts[index] = self.colorize(part, 'file')
+                elif part.startswith('http') or part.startswith('www'):
+                    parts[index] = self.colorize(part, 'url')
+            message = " ".join(parts)
+        return message

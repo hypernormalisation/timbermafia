@@ -18,6 +18,7 @@ my_palette = 'sensible'
 if len(sys.argv) > 1:
     my_palette = sys.argv[1]
 timbermafia.configure(palette=my_palette, enclose=False, justify='right',
+                      show_separator=True,
                       format='{asctime} | {levelname} | {name}.{funcName} | {message}')
 timbermafia.add_handler(stream=sys.stdout, filename='/tmp/my.log')
 

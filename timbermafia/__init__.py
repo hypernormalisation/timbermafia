@@ -2,7 +2,7 @@ import logging
 import shutil
 import copy
 # from logging import root
-from timbermafia.rainbow import RainbowStreamHandler, palette_dict
+from timbermafia.rainbow import RainbowStreamHandler, RainbowFileHandler, palette_dict
 from timbermafia.formatters import TMFormatter
 from timbermafia.utils import *
 from collections.abc import Iterable
@@ -161,7 +161,10 @@ def add_handler(**kwargs):
     # Configure file handler if required.
     filename = kwargs.get('filename', _config2['filename'])
     if filename:
-        f = logging.FileHandler(filename)
+        if not _config['monochrome']:
+            f = RainbowFileHandler(filename, config=c)
+        else:
+            f = logging.FileHandler(filename)
         f.setFormatter(formatter)
         handlers.append(f)
 
