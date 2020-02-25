@@ -114,9 +114,8 @@ class RainbowStreamHandler(logging.StreamHandler):
     def output_colorized(self, message):
         self.stream.write(message)
 
-    def colorize(self, message, record):
+    def colorize(self, message, record, to_reset=True):
         levelno = None
-        # print(record, isinstance(record, str))
         if isinstance(record, str):
             levelno = record
         else:
@@ -132,9 +131,14 @@ class RainbowStreamHandler(logging.StreamHandler):
             if fg_color:
                 parameters.append(fg.format(fg_color))
             if parameters:
-                message = "".join(
-                    ("".join(parameters), message, reset)
-                )
+                if to_reset:
+                    message = "".join(
+                        ("".join(parameters), message, reset)
+                    )
+                else:
+                    message = "".join(
+                        ("".join(parameters), message)
+                    )
         return message
 
     def format(self, record):
@@ -154,8 +158,13 @@ class RainbowStreamHandler(logging.StreamHandler):
                     continue
                 if part[0] == '/':
                     parts[index] = self.colorize(part, 'file')
+                    # print(parts, record)
+                    # to_add = self.colorize(' ', record, to_reset=False)
+                    # print(to_add.encode('unicode_escape'))
+                    parts[index] += self.colorize('', record, to_reset=False)
                 elif part.startswith('http') or part.startswith('www'):
                     parts[index] = self.colorize(part, 'url')
+                    parts[index] += self.colorize('', record, to_reset=False)
             message = " ".join(parts)
         return message
 
