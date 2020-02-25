@@ -14,12 +14,14 @@ t_size = shutil.get_terminal_size()
 style_map = {
     'default': {},
     'simple': {
-        'format': '{asctime} > {name}.{funcName} > {message}',
+        'format': '{name}.{funcName} |> {message}',
+        'show_separator': False,
         'enclose': False,
-        'truncate': [],
+        'truncate': ['name'],
+        'name_padding': 8,
+        'funcName_padding': 8,
         'justify': 'left',
         'justify_right': [],
-        'time_format': '%d-%m-%Y %H:%M:%S',
         'line_separator': '-',
     },
     'minimalist': {

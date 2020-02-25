@@ -1,6 +1,16 @@
 import logging
 import timbermafia
 import sys
+import argparse
+
+parser = argparse.ArgumentParser('Script to demonstrate timbermafia styles and palettes')
+
+parser.add_argument('--style', '-s', type=str, choices=timbermafia.style_map.keys(),
+                    help='timbermafia style to use for formatting',
+                    default='default')
+parser.add_argument('--palette', '-p', type=str, choices=timbermafia._valid_palettes,
+                    help='timbermafia palette to use for formatting',
+                    default='sensible')
 
 lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor " \
         "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud " \
@@ -14,21 +24,28 @@ class MyClass(timbermafia.Logged):
     def status(self):
         self.log.info(f'logging from {self.__class__.__name__} in the function status')
 
-my_palette = 'sensible'
-if len(sys.argv) > 1:
-    my_palette = sys.argv[1]
-timbermafia.configure(palette=my_palette, style='minimalist',
-                      format='{asctime} | {levelname} | {name}.{funcName} | {message}')
+my_args = parser.parse_args()
+my_palette = my_args.palette
+my_style = my_args.style
+
+timbermafia.configure(palette=my_palette, style=my_style)
+                      # format='{asctime} | {levelname} | {name}.{funcName} | {message}')
 timbermafia.add_handler(stream=sys.stdout, filename='/tmp/my.log')
 
 log = logging.getLogger(__name__)
 
 log.header('Demo of timbermafia logging')
+log.info('INFO messages look like this')
+log.info('urls look like this: www.github.com')
+log.info('local files look like this: /tmp/timbermafia.log '
+         '- this output is being written there too!')
+log.info('')
 log.info(lorem)
+
 m = MyClass()
+m.log.info('messages from MyClass with a timbermafia mixin logger look like this')
 m.status()
-log.debug('Some debug output with a url: www.github.com')
-log.warning('Some warning with a local file: /tmp/some.db')
-log.error('Here is an error.')
-log.fatal('Fatal error encountered')
-log.info('Message containing separators like | @ $ etc are unaffected in messages')
+log.debug('DEBUG messages look like this')
+log.warning('WARNING messages look like this')
+log.error('ERROR messages look like this')
+log.fatal('FATAL/CRITICAL error messages look like this.')
