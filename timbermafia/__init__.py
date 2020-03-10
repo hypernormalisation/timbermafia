@@ -14,10 +14,13 @@ t_size = shutil.get_terminal_size()
 style_map = {
     'default': {},
     'simple': {
-        'format': '{name}.{funcName} |> {message}',
-        'show_separator': False,
+        'format': '{name}.{funcName} > {message}',
+        'separator': '>',
+        'show_separator': True,
+        'sparse_separator': True,
         'enclose': False,
-        'truncate': ['name'],
+        'truncate': [],
+        # 'truncate': ['name'],
         'name_padding': 8,
         'funcName_padding': 8,
         'justify': 'left',
@@ -67,7 +70,7 @@ for style in style_map:
 style_map.update(mono_styles)
 
 style_map['minimalist_mono']['format'] = '{asctime} | {levelname} | {name}.{funcName} | {message}'
-
+style_map['simple_mono']['format'] = '{levelname} > {name}.{funcName} > {message}'
 
 _valid_for_bools = [0, 1, True, False]
 _valid_palettes = list(palette_dict.keys())
@@ -81,6 +84,7 @@ _valid_configs = {
     'clean_names': _valid_for_bools,
     'sparse_separators': _valid_for_bools,
     'justify': ['left', 'right', 'center'],
+    'separator_style': ['basic', 'smart', 'full'],
     'format_style': ['{'],
     'style': style_map.keys(),
 }
@@ -98,11 +102,14 @@ _config = {
     'monochrome': False,
     'bold': True,
     'enclose': False,
+    'enclosers': [],
     'show_separator': True,
     'divide_lines': False,
     'line_separator': '~',
     'separator': '|',
+    'separator_style': 'smart',
     'sparse_separators': True,
+    'sparse_fields': ['message'],
     'clean_names': True,
 
     # Justification options
@@ -114,8 +121,8 @@ _config = {
 
     # Column and padding widths
     'columns': t_size.columns,
-    'name_padding': 15,
-    'funcName_padding': 15,
+    'name_padding': 10,
+    'funcName_padding': 10,
     'module_padding': 25,
     'pathname_padding': 40,
     'lineNo_padding': 4,
@@ -176,8 +183,29 @@ def configure(**kwargs):
         for setting, value in style_map[style].items():
             temp_dict[setting] = value
 
+    # Each time configure is called, recheck the padding.
+    columns = kwargs.get('columns', shutil.get_terminal_size().columns)
+    temp_dict['columns'] = columns
+
     for key, val in kwargs.items():
         temp_dict[key] = val
+
+    # Check for inconsistent settings
+    justification_dict = {}
+    justification_dict.update(_config)
+    justification_dict.update(temp_dict)
+    just_lr = [x for x in justification_dict['justify_left']
+               if x in justification_dict['justify_right']]
+    just_lc = [x for x in justification_dict['justify_center']
+               if x in justification_dict['justify_left']]
+    just_rc = [x for x in justification_dict['justify_center']
+               if x in justification_dict['justify_right']]
+    print(justification_dict)
+    if just_lr or just_lc or just_rc:
+        justs = just_rc + just_lc + just_lr
+        raise ValueError('Multiple justifications specified for '
+                         'section : '+', '.join(justs))
+
     _config.update(temp_dict)
 
 

@@ -14,7 +14,7 @@ sensible = {
     logging.WARNING: (214, None, False),
     logging.ERROR: (196, None, True),
     logging.FATAL: (40, 52, True),
-    LOCALFILE: (184, None, True),
+    LOCALFILE: (154, None, True),
     URL: (44, None, True),
 }
 
@@ -158,9 +158,6 @@ class RainbowStreamHandler(logging.StreamHandler):
                     continue
                 if part[0] == '/':
                     parts[index] = self.colorize(part, 'file')
-                    # print(parts, record)
-                    # to_add = self.colorize(' ', record, to_reset=False)
-                    # print(to_add.encode('unicode_escape'))
                     parts[index] += self.colorize('', record, to_reset=False)
                 elif part.startswith('http') or part.startswith('www'):
                     parts[index] = self.colorize(part, 'url')
@@ -180,28 +177,6 @@ class RainbowFileHandler(logging.FileHandler):
         colour_map_key = config['palette']
         self.config = config
         self.level_map = palette_dict.get(colour_map_key)
-
-    # def istty(self):
-    #     isatty = getattr(self.stream, "isatty", None)
-    #     return isatty and isatty()
-    #
-    # def emit(self, record):
-    #     try:
-    #         message = self.format(record)
-    #         stream = self.stream
-    #         if not self.istty:
-    #             stream.write(message)
-    #         else:
-    #             self.output_colorized(message)
-    #         stream.write(getattr(self, "terminator", "\n"))
-    #         self.flush()
-    #     except (KeyboardInterrupt, SystemExit):
-    #         raise
-    #     except:
-    #         self.handleError(record)
-    #
-    # def output_colorized(self, message):
-    #     self.stream.write(message)
 
     def colorize(self, message, record):
         levelno = None

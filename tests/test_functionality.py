@@ -3,7 +3,7 @@ import timbermafia
 import sys
 import argparse
 
-parser = argparse.ArgumentParser('Script to demonstrate timbermafia styles and palettes')
+parser = argparse.ArgumentParser('timbermafia styles/palettes')
 
 parser.add_argument('--style', '-s', type=str, choices=timbermafia.style_map.keys(),
                     help='timbermafia style to use for formatting',
@@ -17,7 +17,7 @@ lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
         "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute " \
         "irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla " \
         "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia " \
-        "deserunt mollit anim id est laborum. "
+        "deserunt mollit anim id est laborum."
 
 
 class MyClass(timbermafia.Logged):
@@ -28,24 +28,23 @@ my_args = parser.parse_args()
 my_palette = my_args.palette
 my_style = my_args.style
 
-timbermafia.configure(palette=my_palette, style=my_style)
+timbermafia.configure(palette=my_palette, style=my_style, enclose=True)
                       # format='{asctime} | {levelname} | {name}.{funcName} | {message}')
-timbermafia.add_handler(stream=sys.stdout, filename='/tmp/my.log')
+timbermafia.add_handler(stream=sys.stdout) #, filename='/tmp/timbermafia_test.log')
 
 log = logging.getLogger(__name__)
 
-log.header('Demo of timbermafia logging')
+# log.header('Demo of timbermafia logging')
 log.info('INFO messages look like this')
-log.info('urls look like this: www.github.com')
-log.info('local files look like this: /tmp/timbermafia.log '
-         '- this output is being written there too!')
-log.info('')
-log.info(lorem)
-
-m = MyClass()
-m.log.info('messages from MyClass with a timbermafia mixin logger look like this')
-m.status()
-log.debug('DEBUG messages look like this')
-log.warning('WARNING messages look like this')
-log.error('ERROR messages look like this')
-log.fatal('FATAL/CRITICAL error messages look like this.')
+# log.info('urls look like this: www.github.com or https://ipleak.net/')
+# log.info('local files look like this: /tmp/timbermafia_test.log '
+#          '- this output is being written there too!')
+# log.info(lorem)
+#
+# m = MyClass()
+# m.log.info('messages from MyClass with a timbermafia mixin logger look like this')
+# m.status()
+# log.debug('DEBUG messages look like this')
+# log.warning('WARNING messages look like this')
+# log.error('ERROR messages look like this')
+# log.fatal('FATAL/CRITICAL error messages look like this.')
