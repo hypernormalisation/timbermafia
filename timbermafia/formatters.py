@@ -1,6 +1,14 @@
 import logging
+import re
+import sys
 import textwrap
 from timbermafia.utils import *
+
+
+class TMFormatter2(logging.Formatter):
+
+    def __init__(self):
+
 
 
 class TMFormatter(logging.Formatter):
@@ -23,16 +31,33 @@ class TMFormatter(logging.Formatter):
                              if ('padding' in k)}
         self._configured = False
 
-        # Do something hacky so that the generator logging.StrFormatStyle
+        # Do something hacky so that the generated logging.StrFormatStyle
         # gets our format with the substituted unique dividers.
         fmt_original = args[0]
         fmt_tm = fmt_original.replace(self.separator, replacer_flag)
         temp_args = list(args)
         temp_args[0] = fmt_tm
         args = tuple(temp_args)
-        self.time_padding = None  # Will be filled adaptively
+
+        # Container for a list of the headings with the format inserted
+        # so we can check for the presence of individual fields.
+        self.fields_with_formats = re.findall(r'{.*?}', fmt_original)
+        self.num_fields = len(self.fields_with_formats)
+        self.field_warnings = []
+
         super().__init__(*args, **kwargs)
+        self._fmt_tm = self._fmt
         self._fmt = fmt_original
+
+    def make_format_dict(self):
+        """Function to make a dict with the properties of the different
+        segments of the log output."""
+
+
+    @staticmethod
+    def get_headers(s):
+        headers = re.findall(r'{.*?}', s)
+        return [x[1:-1] for x in headers]
 
     @property
     def columns(self):
@@ -70,10 +95,11 @@ class TMFormatter(logging.Formatter):
 
     def set_padding(self, record, chunks):
         """
-        Get any static padding lengths that can
+        Get any padding lengths that can
         be found adaptively
         """
         sections = [s.strip() for s in self._fmt.split(self.separator)]
+        print(sections)
         # chunks = [chunk.strip() for chunk in s.split(self.separator)]
 
         # Set timestamp padding
@@ -104,8 +130,14 @@ class TMFormatter(logging.Formatter):
             message_padding += 4
         self.padding_dict['message'] = message_padding
 
+        self.build_segment_dict()
+
         # Only run this once
         self._configured = True
+
+    def build_segment_dict(self):
+        pass
+        # print(self.fields_with_formats)
 
     def return_padded_content(self, header, content):
         # Find the fields present
@@ -131,8 +163,37 @@ class TMFormatter(logging.Formatter):
             content = content.replace(term, '')
         return content
 
-    def pad(self, header, content):
-        """Function to take the individual output segments and pad them."""
+    def justify_contents(self, header, content_list, padding):
+        # print(header, content_list)
+        just = self.config['justify']
+        active_headers = self.get_headers(header)
+        # print(active_headers)
+        modifiers = []
+        for section in active_headers:
+            if section in self.jl:
+                modifiers.append('left')
+            if section in self.jr:
+                modifiers.append('right')
+            if section in self.jc:
+                modifiers.append('center')
+        if modifiers:
+            if len(modifiers) > 1 and header not in self.field_warnings:
+                print('WARNING: multiple justification modifiers present for '
+                      f'section: {header}, defaulting to {modifiers[0]} justification.')
+                self.field_warnings.append(header)
+            just = modifiers[0]
+        # print(content_list)
+        new_contents = []
+        for line in content_list:
+            new_contents.append(self.just_map[just](line, padding))
+        return new_contents
+
+    def wrap_and_pad_text(self, header, content):
+        """Function to take the individual output
+         segments and assign padding.
+
+         Does not pad the contents itself.
+         """
         fields = [s for s in self.padding_dict if '{' + s + '}' in header]
         # Add the padding for each field
         padding = 0
@@ -152,7 +213,10 @@ class TMFormatter(logging.Formatter):
 
         # textwrap the results
         content_list = textwrap.wrap(content, padding, break_long_words=True)
-        # print(content_list)
+
+        # justify the results
+        content_list = self.justify_contents(header, content_list, padding)
+
         return content_list, padding
 
     def get_output_dict(self, chunks):
@@ -161,25 +225,28 @@ class TMFormatter(logging.Formatter):
         sections = [s.strip() for s in self._fmt.split(self.separator)]
         contents = {'max_lines': 0}
         for i, (s, c) in enumerate(zip(sections, chunks)):
-            s_list, padding = self.pad(s, c)
+            s_list, padding = self.wrap_and_pad_text(s, c)
             n_lines = len(s_list)
             if contents['max_lines'] < n_lines:
                 contents['max_lines'] = n_lines
             contents[i] = {'line_array': s_list, 'padding': padding, 'section': s}
-        # print(contents)
+
+        # Now pad the lines
+
         return contents
 
     def output_dict_to_str(self, contents):
         """Convert the dict containing the line arrays to a final string."""
         complete_s = ''
-        max_lines = contents.pop('max_lines')
-        segments = len(contents)
+        # max_lines = contents.pop('max_lines')
+        max_lines = contents['max_lines']
+        num_segments = len(contents) - 1
         # print(contents)
         to_iter = max_lines
         # if self.config['divide_lines']:
         #     to_iter = max_lines + 1
         for line_number in range(to_iter):
-            for j in range(len(contents)):
+            for j in range(num_segments):
                 if j == 0 and self.enclose:
                     # if line_number != 0 and self.config['sparse_separators']:
                     #     complete_s += '  '
@@ -187,24 +254,13 @@ class TMFormatter(logging.Formatter):
                     complete_s += self.separator_insert + ' '
                 results = contents[j]
                 try:
-                    # Figure out how to justify this output.
-                    section = results['section']
-                    just = self.config['justify']
-                    if section in self.jl:
-                        complete_s += results['line_array'][line_number].ljust(results['padding'])
-                    elif section in self.jr:
-                        complete_s += results['line_array'][line_number].rjust(results['padding'])
-                    elif section in self.jc:
-                        complete_s += results['line_array'][line_number].center(results['padding'])
-                    else:
-                        complete_s += self.just_map[just](results['line_array'][line_number],
-                                                          results['padding'])
+                    complete_s += results['line_array'][line_number]
                 except IndexError:
                     # if i == to_iter - 1:
                     #     # complete_s = complete_s[:-1]
                     #     complete_s += self.line_separator * (results['padding'])
                     # else:
-                        complete_s += ' ' * results['padding']
+                    complete_s += ' ' * results['padding']
 
                 # if i != to_iter - 1:
 
@@ -218,7 +274,7 @@ class TMFormatter(logging.Formatter):
                 else:
                     complete_s += f' {self.separator_insert}'
                 #
-                if j != segments - 1:
+                if j != num_segments - 1:
                     complete_s += ' '
                 # else:
 
@@ -250,6 +306,80 @@ class TMFormatter(logging.Formatter):
         s = s[:self.columns]
         return s
 
+    def enclose_frame(self, s):
+        """Function to enclose the frame as required."""
+        if not self.config['enclosers']:
+            line_list = s.split('\n')
+            new_list = []
+            for line in line_list:
+                line += self.separator_insert
+                line = self.separator_insert + line
+                print(line)
+                new_list.append(line)
+            s = '\n'.join(new_list)
+        else:
+            sys.exit('NOT IMPLEMENTED')
+            # if len(self.config['enclosers']) == 1:
+            #     s += self.config['enclosers'] * 2
+            # else:
+            #     s += self.config['enclosers']
+        return s
+
+    def build_fields(self, complete_s, contents):
+        num_lines = contents['max_lines']
+        # if self.config['divide_lines']:
+        #     to_iter = max_lines + 1
+        # max_lines = contents['max_lines']
+        num_segments = len(contents) - 1
+
+        sparse = self.config['sparse_separators']
+        for line_number in range(num_lines):
+            for j in range(num_segments):
+
+
+
+                # if j == 0 and self.enclose:
+                #     # if line_number != 0 and self.config['sparse_separators']:
+                #     #     complete_s += '  '
+                #     # else:
+                #     complete_s += self.separator_insert + ' '
+
+                if self.config['sparse_separators'] and \
+                        line_number > 0 and j != len(contents) - 2:
+                    complete_s += '  '
+                else:
+                    complete_s += f' {self.separator_insert}'
+                #
+                if j != num_segments - 1:
+                    complete_s += ' '
+
+            # # Trim separator as needed.
+            # if not self.enclose:
+            #     to_trim = 1 + len(self.separator)
+            #     complete_s = complete_s[:-to_trim]
+
+            # elif self.config['sparse_separators']:
+            #     complete_s = complete_s[:-1]
+            #     complete_s += self.separator_insert
+
+            # Linebreak for all but the last line.
+            if line_number != num_lines - 1:
+                complete_s += '\n'
+
+        return complete_s
+
+    def build_frame(self, d):
+        s = ''
+        s = self.build_fields(s, d)
+
+        # If necessary enclose
+        if self.enclose:
+            s = self.enclose_frame(s)
+
+        print('Frame says:', s)
+        print(self._fmt_tm)
+        return s
+
     def format(self, record):
         partial_format_string = super(TMFormatter, self).format(record)
         record_components = partial_format_string.split(replacer_flag)
@@ -264,10 +394,15 @@ class TMFormatter(logging.Formatter):
         if not self._configured:
             self.set_padding(record, record_components)
 
+        # Pad the components and return the config in a dict.
         d = self.get_output_dict(record_components)
-        s = self.output_dict_to_str(d)
+        print(d)
 
-        if self.config['divide_lines']:
-            s += '\n' + self.line_separator_string
+        # s = self.output_dict_to_str(d)
+
+        s = self.build_frame(d)
+
+        # if self.config['divide_lines']:
+        #     s += '\n' + self.line_separator_string
 
         return s
