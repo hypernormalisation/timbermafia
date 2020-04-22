@@ -1,4 +1,5 @@
 import logging
+import sys
 from timbermafia.utils import LOCALFILE, URL
 
 
@@ -81,29 +82,28 @@ palette_dict = {
 class RainbowStreamHandler(logging.StreamHandler):
     """
     Stream handler with support for automatic colouring of text
-    depending on log levels, filepaths, URLs etc.
+    depending on log levels, file paths, URLs etc.
 
     Taken extensively from Will Breaden-Madden's technicolor package.
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-        config = kwargs.get('config')
-        colour_map_key = config['palette']
-        self.config = config
-        self.level_map = palette_dict.get(colour_map_key)
+    def __init__(self, stream=sys.stdout, palette='sensible', allow_bold=True):
+        super().__init__(stream=stream)
+        self.palette_dict = palette_dict.get(palette)
+        self.allow_bold = allow_bold
 
-    def istty(self):
-        isatty = getattr(self.stream, "isatty", None)
-        return isatty and isatty()
+    # @property
+    # def istty(self):
+    #     isatty = getattr(self.stream, "isatty", None)
+    #     return isatty and isatty()
 
     def emit(self, record):
         try:
             message = self.format(record)
             stream = self.stream
-            if not self.istty:
-                stream.write(message)
-            else:
-                self.output_colorized(message)
+            # if self.istty:
+            self.output_colorized(message)
+            # else:
+            #     stream.write(message)
             stream.write(getattr(self, "terminator", "\n"))
             self.flush()
         except (KeyboardInterrupt, SystemExit):
@@ -115,16 +115,13 @@ class RainbowStreamHandler(logging.StreamHandler):
         self.stream.write(message)
 
     def colorize(self, message, record, to_reset=True):
-        levelno = None
-        if isinstance(record, str):
-            levelno = record
-        else:
-            levelno = record.levelno
-        if levelno in self.level_map:
-            fg_color, bg_color, bold = self.level_map[levelno]
+        level = record if isinstance(record, str) else record.levelno
+        print(level)
+        if level in self.palette_dict:
+            fg_color, bg_color, bold = self.palette_dict[level]
             parameters = []
             if bold:
-                if self.config['bold']:
+                if self.allow_bold:
                     parameters.append('\033[1m')
             if bg_color:
                 parameters.append(bg.format(bg_color))
@@ -142,9 +139,9 @@ class RainbowStreamHandler(logging.StreamHandler):
         return message
 
     def format(self, record):
-        message = logging.StreamHandler.format(self, record)
-        if self.istty:
+        message = super().format(record)
 
+        if True:
             # Colour all multi-line output.
             parts = message.split("\n", 1)
             for index, part in enumerate(parts):
@@ -153,6 +150,7 @@ class RainbowStreamHandler(logging.StreamHandler):
 
             # File and URLs
             parts = message.split(' ')
+            print(parts)
             for index, part in enumerate(parts):
                 if not part:
                     continue
