@@ -10,84 +10,126 @@ log = logging.getLogger(__name__)
 
 t_size = shutil.get_terminal_size()
 
-# Styles with preset configs
-style_map = {
+# Predetermined settings
+left = str.ljust
+right = str.rjust
+center = str.center
+
+# The column dict is where properties relating to
+# columns and their content RE the log record components
+# are stored.
+column_dict = {}
+
+
+class Column:
+    def __init__(self, content, **kwargs):
+        self.content = content
+        for kw in kwargs:
+            setattr(self, kw, kwargs[kw])
+
+
+class Layout:
+    def __init__(self):
+        pass
+
+
+
+# Set of default settings that apply for most styles
+style_defaults = {
+    'smart_names': True,
+    'justify': right,
+    'time_format': '%H:%M:%S',
+    'style': '{',
+}
+
+# A dict of settings for predetermined styles
+style_dict = {
     'default': {},
-    'simple': {
-        'format': '{name}.{funcName} > {message}',
-        'separator': '>',
-        'show_separator': True,
-        'sparse_separator': True,
-        'enclose': False,
-        'truncate': [],
-        # 'truncate': ['name'],
-        'name_padding': 8,
-        'funcName_padding': 8,
-        'justify': 'left',
-        'justify_right': [],
-        'line_separator': '-',
-    },
-    'minimalist': {
-        'show_separator': False,
-        'sparse_separators': False,
-        'enclose': False,
-        'format': '{asctime} | {name}.{funcName} | {message}',
-        'truncate': [],
-        'name_padding': 10,
-        'funcName_padding': 10,
-        'columns': int(t_size.columns * 1.),
-    },
-    'boxed': {
-        'enclose': True,
-        'time_format': "%H:%M:%S",
-        'format': '{asctime} | {levelname} | {name}.{funcName} | {message}',
-        'show_separator': True,
-        'divide_lines': True,
-        'truncate': [],
-        'line_separator': '=',
-        'sparse_separators': False,
-    },
-    'jupyter': {
-        'bold': False,
-        'show_separator': False,
-        'enclose': False,
-        'format': '{asctime} | {name}.{funcName} | {message}',
-    },
-    'doublespace': {
-        'line_separator': ' ',
-        'divide_lines': True,
-        'sparse_separators': True,
-        'enclose': False,
+        'format': '{1} _| {2} __>> | {3}',
+        '1': Column('{asctime}'),
+        '2': Column('{name}.{funcName}'),
+        '3': Column('{message}', justify=left),
     }
-}
 
-# Add monochrome styles
-mono_styles = {}
-for style in style_map:
-    d = copy.deepcopy(style_map[style])
-    d['monochrome'] = True
-    mono_styles[f'{style}_mono'] = d
-style_map.update(mono_styles)
 
-style_map['minimalist_mono']['format'] = '{asctime} | {levelname} | {name}.{funcName} | {message}'
-style_map['simple_mono']['format'] = '{levelname} > {name}.{funcName} > {message}'
+# # Styles with preset configs
+# style_map = {
+#     'default': {},
+#     'simple': {
+#         'format': '{name}.{funcName} > {message}',
+#         'separator': '>',
+#         'show_separator': True,
+#         'sparse_separator': True,
+#         'enclose': False,
+#         'truncate': [],
+#         # 'truncate': ['name'],
+#         'name_padding': 8,
+#         'funcName_padding': 8,
+#         'justify': 'left',
+#         'justify_right': [],
+#         'line_separator': '-',
+#     },
+#     'minimalist': {
+#         'show_separator': False,
+#         'sparse_separators': False,
+#         'enclose': False,
+#         'format': '{asctime} | {name}.{funcName} | {message}',
+#         'truncate': [],
+#         'name_padding': 10,
+#         'funcName_padding': 10,
+#         'columns': int(t_size.columns * 1.),
+#     },
+#     'boxed': {
+#         'enclose': True,
+#         'time_format': "%H:%M:%S",
+#         'format': '{asctime} | {levelname} | {name}.{funcName} | {message}',
+#         'show_separator': True,
+#         'divide_lines': True,
+#         'truncate': [],
+#         'line_separator': '=',
+#         'sparse_separators': False,
+#     },
+#     'jupyter': {
+#         'bold': False,
+#         'show_separator': False,
+#         'enclose': False,
+#         'format': '{asctime} | {name}.{funcName} | {message}',
+#     },
+#     'doublespace': {
+#         'line_separator': ' ',
+#         'divide_lines': True,
+#         'sparse_separators': True,
+#         'enclose': False,
+#     }
+# }
+#
+# # Add monochrome styles
+# mono_styles = {}
+# for style in style_map:
+#     d = copy.deepcopy(style_map[style])
+#     d['monochrome'] = True
+#     mono_styles[f'{style}_mono'] = d
+# style_map.update(mono_styles)
+#
+# style_map['minimalist_mono']['format'] = '{asctime} | {levelname} | {name}.{funcName} | {message}'
+# style_map['simple_mono']['format'] = '{levelname} > {name}.{funcName} > {message}'
 
-_valid_for_bools = [0, 1, True, False]
-_valid_palettes = list(palette_dict.keys())
-_valid_configs = {
-    'palette': _valid_palettes,
-    'monochrome': _valid_for_bools,
-    'bold': _valid_for_bools,
-    'enclose': _valid_for_bools,
-    'show_separator': _valid_for_bools,
-    'divide_lines': _valid_for_bools,
-    'clean_names': _valid_for_bools,
-    'sparse_separators': _valid_for_bools,
-    'justify': ['left', 'right', 'center'],
-    'separator_style': ['basic', 'smart', 'full'],
-    'format_style': ['{'],
-    'style': style_map.keys(),
-}
+# _valid_for_bools = [0, 1, True, False]
+# _valid_palettes = list(palette_dict.keys())
+# _valid_configs = {
+#     'palette': _valid_palettes,
+#     'monochrome': _valid_for_bools,
+#     'bold': _valid_for_bools,
+#     'enclose': _valid_for_bools,
+#     'show_separator': _valid_for_bools,
+#     'divide_lines': _valid_for_bools,
+#     'clean_names': _valid_for_bools,
+#     'sparse_separators': _valid_for_bools,
+#     'justify': ['left', 'right', 'center'],
+#     'separator_style': ['basic', 'smart', 'full'],
+#     'format_style': ['{'],
+#     'style': style_map.keys(),
+# }
 
 
 

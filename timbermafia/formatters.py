@@ -4,11 +4,18 @@ import sys
 import textwrap
 from timbermafia.utils import *
 
+#
+# class TMFormatter2(logging.Formatter):
+#
+#     def __init__(self):
+#
 
-class TMFormatter2(logging.Formatter):
 
-    def __init__(self):
+class TMFormatStyle:
+    """For formatting Timbermafia log records."""
 
+    def __init__(self, fmt):
+        self._fmt = fmt
 
 
 class TMFormatter(logging.Formatter):
