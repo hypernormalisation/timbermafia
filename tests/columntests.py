@@ -10,6 +10,10 @@ alpha_pattern = re.compile('[a-zA-Z]*')
 numeric_pattern = re.compile('[0-9]*')
 both_pattern = re.compile('[A-Za-z0-9]*([a-zA-Z]+[0-9]+|[0-9]+[a-zA-Z]+)')
 
+fg_escape = '>'
+bg_escape = '<'
+
+
 class TMString(str):
 
     def __init__(self, content):
@@ -31,23 +35,38 @@ class TMString(str):
     def _format_number_spec(s, fmt_spec):
         return '\033[' + fmt_spec + 'm'
 
+    @staticmethod
+    def _format_foreground_colour(s, fmt_spec):
+        return '\033[38;5;' + fmt_spec.replace(fg_escape, '') + 'm'
+
+    @staticmethod
+    def _format_background_colour(fmt_spec):
+        return '\033[48;5;' + fmt_spec.replace(bg_escape, '') + 'm'
+
     def __format__(self, fmt_spec=''):
         printable = ''
         params = []
+        # print('fmt_spec says:', fmt_spec)
         if fmt_spec:
 
-            # Remove whitspace
+            # Remove whitespace
             fmt_spec.replace(' ', '')
-
             fmts = fmt_spec.split(',')
-
-            # First separate any number/letter combos
+            # print(fmts)
             parsed_fmts = []
             for fmt in fmts:
-                if not fmt.isalnum():
-                    raise ValueError('fmt_spec is not alphanumeric')
+                # if not fmt.isalnum():
+                #     raise ValueError('fmt_spec is not alphanumeric')
+
+                # First format foreground and background colours as needed
+                if re.search(fg_escape, fmt):
+                    params.append(self._format_foreground_colour(printable, fmt))
+
+                if re.search(bg_escape, fmt):
+                    params.append(self._format_background_colour(fmt))
+
                 # If both numbers and letters are present separate them
-                if both_pattern.match(fmt):
+                elif both_pattern.match(fmt):
                     characters = [x for x in alpha_pattern.findall(fmt) if x]
                     numbers = [x for x in numeric_pattern.findall(fmt) if x]
                     for x in numbers+characters:
@@ -66,12 +85,18 @@ class TMString(str):
             ("".join(params), self.content, RESET)
         )
 
+# #
+# message = TMString('I am a TMString')
+# print(message)
+# # print(s.encode('unicode_escape'))
+# print(TMString('{message:b}'.format()
+# print(f'{message:b,>196}')
+# print(f'{message:>196}'.encode('unicode_escape'))
+# print(f'{message:b,>226,<52}')
+# # print(f'{s:7b}')
+# # print(f'{s:bu51,1}')')
+
 #
-# s = TMString('I am a TMString')
+# s = TMString('{message:b}')
+# # print(s.format(message='test'))
 # print(s)
-# print(s.encode('unicode_escape'))
-#
-# print(f'{s:bu,7}'.encode('unicode_escape'))
-# print(f'{s:7b}')
-# print(f'{s:bu51,1}')
-# print('I am a regular old string')
