@@ -14,6 +14,16 @@ fg_escape = '>'
 bg_escape = '<'
 
 
+def transform_record(record):
+    """Function to convert any strings in a LogRecord's
+    properties to a TMString"""
+    new_d = {}
+    for key, value in record.__dict__.items():
+        if isinstance(value, str):
+            new_d[key] = TMString(value)
+    record.__dict__.update(new_d)
+
+
 class TMString(str):
 
     def __init__(self, content):

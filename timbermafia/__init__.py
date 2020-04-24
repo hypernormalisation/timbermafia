@@ -1,6 +1,7 @@
 import logging
 import shutil
 import copy
+import timbermafia.formats
 from timbermafia.rainbow import RainbowStreamHandler, RainbowFileHandler, palette_dict
 from timbermafia.formatters import TMFormatter
 from timbermafia.utils import *
@@ -10,46 +11,41 @@ log = logging.getLogger(__name__)
 
 t_size = shutil.get_terminal_size()
 
-# Predetermined settings
 left = str.ljust
 right = str.rjust
 center = str.center
 
-# The column dict is where properties relating to
-# columns and their content RE the log record components
-# are stored.
-column_dict = {}
+
+style_dict = {}
 
 
-class Column:
-    def __init__(self, content, **kwargs):
-        self.content = content
-        for kw in kwargs:
-            setattr(self, kw, kwargs[kw])
+class Style:
+
+    default = {
+        'smart_names': True,
+        'justify': {'default': right, 'left_fields': ['message']},
+        'time_format': '%H:%M:%S',
+    }
+
+    def __init__(self, preset=None):
+        self.conf = self.default
+        # If a style name is passed, load it.
+        if preset:
+            self.conf.update(style_dict)
 
 
-class Layout:
-    def __init__(self):
-        pass
-
-
-
-# Set of default settings that apply for most styles
-style_defaults = {
-    'smart_names': True,
-    'justify': right,
-    'time_format': '%H:%M:%S',
-    'style': '{',
-}
 
 # A dict of settings for predetermined styles
-style_dict = {
-    'default': {},
-        'format': '{1} _| {2} __>> | {3}',
-        '1': Column('{asctime}'),
-        '2': Column('{name}.{funcName}'),
-        '3': Column('{message}', justify=left),
-    }
+#
+# style_dict = {
+#     'default':
+# }
+#     'default': {},
+#         'format': '{1} _| {2} __>> | {3}',
+#         '1': Column('{asctime}'),
+#         '2': Column('{name}.{funcName}'),
+#         '3': Column('{message}', justify=left),
+#     }
 
 
 # # Styles with preset configs
