@@ -25,14 +25,26 @@ class Style:
         'smart_names': True,
         'justify': {'default': right, 'left_fields': ['message']},
         'time_format': '%H:%M:%S',
+        'padding': {},
+        'default_format': '{asctime:u} _| {name}.{funcName} __>> {message:>15}',
     }
 
-    def __init__(self, preset=None):
+    def __init__(self, preset=None, format=None):
         self.conf = self.default
-        # If a style name is passed, load it.
+        self._fmt = format
         if preset:
             self.conf.update(style_dict)
 
+    @property
+    def format(self):
+        if not self._fmt:
+            return self.conf['default_format']
+        return self._fmt
+
+    @format.setter
+    def format(self, f):
+        # Put a regex here to ensure the format is valid.
+        self._fmt = f
 
 
 # A dict of settings for predetermined styles
