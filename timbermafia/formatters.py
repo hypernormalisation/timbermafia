@@ -4,18 +4,42 @@ import sys
 import textwrap
 from timbermafia.utils import *
 
-#
-# class TMFormatter2(logging.Formatter):
-#
-#     def __init__(self):
-#
+
+class TMFormatter2(logging.Formatter):
 
 
-class TMFormatStyle:
-    """For formatting Timbermafia log records."""
 
-    def __init__(self, fmt):
-        self._fmt = fmt
+    def format(self, record):
+        # Convert the message string to an TMString with enhanced fmt_spec
+        record.message = TMString(record.getMessage())
+
+        # Convert the formatted ascitime string to an TMString with enhanced fmt_spec
+        if self.usesTime():
+            record.asctime = TMString(self.formatTime(record, self.datefmt))
+
+        # Convert any other strings
+        transform_record(record)
+
+        s = self.formatMessage(record)
+        if record.exc_info:
+            if not record.exc_text:
+                record.exc_text = self.formatException(record.exc_info)
+        if record.exc_text:
+            if s[-1:] != "\n":
+                s = s + "\n"
+            s = s + record.exc_text
+        if record.stack_info:
+            if s[-1:] != "\n":
+                s = s + "\n"
+            s = s + self.formatStack(record.stack_info)
+        return s
+
+#
+# class TMFormatStyle:
+#     """For formatting Timbermafia log records."""
+#
+#     def __init__(self, fmt):
+#         self._fmt = fmt
 
 
 class TMFormatter(logging.Formatter):
