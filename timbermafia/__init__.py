@@ -1,9 +1,11 @@
 import logging
 import shutil
 import copy
+import inspect
+import sys
 import timbermafia.formats
 from timbermafia.rainbow import RainbowStreamHandler, RainbowFileHandler, palette_dict
-from timbermafia.formatters import TMFormatter
+from timbermafia.formatters import TMFormatter2
 from timbermafia.utils import *
 from collections.abc import Iterable
 
@@ -16,24 +18,31 @@ right = str.rjust
 center = str.center
 
 
-style_dict = {}
+style_dict = {
+    'minimalist': {
+        'default_format': '{asctime} _ {message}',
+    }
+}
 
 
 class Style:
-
+    """Class to hold style settings used in timbermafia
+    logging subclasses."""
     default = {
         'smart_names': True,
         'justify': {'default': right, 'left_fields': ['message']},
         'time_format': '%H:%M:%S',
         'padding': {},
         'default_format': '{asctime:u} _| {name}.{funcName} __>> {message:>15}',
+        'column_escape': '_',
     }
 
-    def __init__(self, preset=None, format=None):
+    def __init__(self, preset=None, fmt=None):
         self.conf = self.default
-        self._fmt = format
+        self._fmt = fmt
         if preset:
-            self.conf.update(style_dict)
+            self.conf.update(style_dict[preset])
+        self.validate_format()
 
     @property
     def format(self):
@@ -45,6 +54,105 @@ class Style:
     def format(self, f):
         # Put a regex here to ensure the format is valid.
         self._fmt = f
+
+    @property
+    def column_escape(self):
+        return self.conf['column_escape']
+
+    @property
+    def simple_format(self):
+        """Return the format without any unnecessary whitespace or fmt_spec"""
+        fmt = self.format
+        fmt = re.sub(r'(?<=\w):\S+(?=[\}:])', '', fmt)
+        fmt = re.sub(self.column_escape, '', fmt)
+        return fmt
+
+    def validate_format(self):
+        """Validate the format for this style to ensure timbermafia
+        can properly parse it"""
+        pass
+
+
+def basic_config(
+        style=None, fmt=None, stream=sys.stdout, filename=None,
+        clear=False, basic_files=True, handlers=None,
+        ):
+    """Function for basic configuration of timbermafia logging.
+
+    Describe Args here
+    """
+    logging._acquireLock()  # don't like that this is protected
+
+    try:
+        # Reference to the root logger
+        logger = logging.root
+
+        # Reset handlers on request
+        handlers = handlers if handlers else []
+        if clear:
+            for h in logger.handlers[:]:
+                logger.removeHandler(h)
+                h.close()
+
+        # Only create formatters and styles as required.
+        use_custom_formatter = stream or (filename and not basic_files)
+        custom_formatter, default_formatter = None, None
+        my_style = Style(style=style, fmt=fmt)
+
+        if use_custom_formatter:
+            custom_formatter = TMFormatter2(style=my_style)
+
+        use_default_formatter = filename and not basic_files
+        if use_default_formatter:
+            # In line below we'll add the basic format from the style property
+            default_formatter = logging.Formatter(my_style.simple_format)
+
+        # Add streamhandler if specified
+        if stream:
+            h = RainbowStreamHandler()
+            h.setFormatter(custom_formatter)
+            handlers.append(h)
+
+        if filename:
+            h = logging.FileHandler(filename)
+            if basic_files:
+                h.setFormatter(default_formatter)
+            else:
+                h.setFormatter(custom_formatter)
+
+        for h in handlers:
+            logger.addHandler(h)
+
+    finally:
+        logging._releaseLock()  # again don't like this
+
+
+
+
+# def add_handler(style=None, format=None,
+#                 stream=sys.stdout, filename=None,
+#                 clear=False, simple_files=True, handlers=None):
+#     # s = tm.generate_style_from_template('minimalist')
+#     # s.change_something
+#     # tm.configure(style='minimalist')
+#
+#     # Generate style
+#     my_style = Style(preset=style, format=format)
+#
+#     # Figure out handlers
+#     handler_list = []
+#     if stream:
+#         h = RainbowStreamHandler(# args here)
+#         handler_list.append(h)
+#     if filename:
+#         if simple_files:
+#             h = logging.FileHandler( # args here)
+#         else:
+#             h = RainbowFileHandler( # args here )
+#     if handlers:
+#         for h in handlers:
+#             if isinstance(h, logging.FileHandler):
+#                 if simple_files:
 
 
 # A dict of settings for predetermined styles
