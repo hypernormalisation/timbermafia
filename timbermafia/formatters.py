@@ -7,8 +7,6 @@ from timbermafia.utils import *
 
 class TMFormatter2(logging.Formatter):
 
-
-
     def format(self, record):
         # Convert the message string to an TMString with enhanced fmt_spec
         record.message = TMString(record.getMessage())

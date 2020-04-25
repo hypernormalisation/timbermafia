@@ -10,9 +10,14 @@ BOLD = '\033[1m'
 EMPH = '\33[3m'
 RESET = '\033[0m'
 UNDERLINE = '\033[4m'
+
+
 alpha_pattern = re.compile('[a-zA-Z]*')
 numeric_pattern = re.compile('[0-9]*')
 both_pattern = re.compile('[A-Za-z0-9]*([a-zA-Z]+[0-9]+|[0-9]+[a-zA-Z]+)')
+column_sep_pattern = re.compile(r'_{1,2}\S+|_{1,2}')
+logrecord_component_pattern = re.compile(r'(?<=\{)[a-zA-Z]+(?=[\}:])')
+
 
 fg_escape = '>'
 bg_escape = '<'
