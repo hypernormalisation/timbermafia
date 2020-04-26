@@ -1,5 +1,6 @@
 import logging
 import re
+import shutil
 import sys
 import textwrap
 from timbermafia.utils import *
@@ -12,9 +13,14 @@ class TimbermafiaFormatter(logging.Formatter):
 
         super().__init__(fmt, time_fmt, style, validate=validate)
         self.style = timbermafia_style
-        self.conf = None
+        self.conf, self.columns = None, None
+
         if self.style:
             self.conf = self.style.generate_column_settings()
+        self.columns = self.style.conf.get(
+            'columns', shutil.get_terminal_size().columns
+        )
+        print(self.columns)
 
     def format(self, record):
 

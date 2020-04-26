@@ -29,13 +29,15 @@ STYLE_DEFAULTS = {
     'smart_names': True,
     'justify': {
         'default': str.rjust,
-        'left_fields': ['message']
+        'left': ['message']
         },
     'time_format': '%H:%M:%S',
     'padding': {},
     'log_format': '{asctime:u} _| {name}.{funcName} __>> {message:b,>118}',
     'column_escape': '_',
     'format_style': '{',
+    'resize_terminal': False,
+    # 'columns': 120,
 }
 
 
@@ -118,6 +120,39 @@ class Style:
         fmt = re.sub(self.column_escape, '', fmt)
         return fmt
 
+    def append_column_justifications(self, column_dict):
+        """Method to take the column dict created by generate_column_settings
+        and insert column-wide settings like justification."""
+        print(column_dict)
+        just_conf = self.conf['justify']
+        default = just_conf['default']
+        to_ljust = just_conf.get('left', [])
+        to_rjust = just_conf.get('right', [])
+        to_cjust = just_conf.get('center', [])
+        # print(to_ljust, to_rjust, to_cjust)
+
+        for d in column_dict.values():
+            fields = d['fields']
+            override = False
+            for field in fields:
+                # print(field)
+                if field in to_ljust:
+                    d['justify'] = str.ljust
+                    override = True
+                    continue
+                if field in to_rjust:
+                    override = True
+                    d['justify'] = str.rjust
+                    continue
+                if field in to_cjust:
+                    override = True
+                    d['justify'] = str.center
+                    continue
+            # If no fields have a value use the default
+            if not override:
+                d['justify'] = default
+        # print(column_dict)
+
     def generate_column_settings(self):
         """
         Function to parse the log format to understand any column
@@ -164,6 +199,7 @@ class Style:
         # print(column_dict)
         # print(separator_dict)
         # print(template)
+        self.append_column_justifications(column_dict)
         return {
             'columns': column_dict,
             'separators': separator_dict,
