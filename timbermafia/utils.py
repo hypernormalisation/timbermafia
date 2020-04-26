@@ -17,6 +17,7 @@ numeric_pattern = re.compile('[0-9]*')
 both_pattern = re.compile('[A-Za-z0-9]*([a-zA-Z]+[0-9]+|[0-9]+[a-zA-Z]+)')
 column_sep_pattern = re.compile(r'_{1,2}\S+|_{1,2}')
 logrecord_component_pattern = re.compile(r'(?<=\{)[a-zA-Z]+(?=[\}:])')
+logrecord_present_pattern = re.compile(r'.*\{\w+(:\S+)?\}.*')
 
 
 fg_escape = '>'
