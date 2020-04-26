@@ -1,23 +1,17 @@
 import logging
-# import shutil
+import math
 import re
+import shutil
 import string
 import sys
+import time
 import timbermafia.formats
 from timbermafia.rainbow import RainbowStreamHandler, RainbowFileHandler, palette_dict
 from timbermafia.formatters import TimbermafiaFormatter
 import timbermafia.utils as utils
 
-# from timbermafia.utils import *
 
 log = logging.getLogger(__name__)
-
-# t_size = shutil.get_terminal_size()
-
-# left = str.ljust
-# right = str.rjust
-# center = str.center
-
 
 STYLES = {
     'minimalist': {
@@ -32,12 +26,17 @@ STYLE_DEFAULTS = {
         'left': ['message']
         },
     'time_format': '%H:%M:%S',
-    'padding': {},
-    'log_format': '{asctime:u} _| {name}.{funcName} __>> {message:b,>118}',
+    'padding': {
+        'default': 0.2,
+        'message': 0.6,
+        # 'name': 0.15,
+        # 'funcName': 0.15,
+    },
+    'log_format': '{asctime:u} _| {levelname} _| {name}.{funcName} __>> {message:b,>118}',
     'column_escape': '_',
     'format_style': '{',
-    'resize_terminal': False,
-    # 'columns': 120,
+    'fit_to_terminal': False,
+    'n_columns': 100,
 }
 
 
@@ -46,7 +45,6 @@ class Style:
     Class to hold style settings used in timbermafia
     logging subclasses.
     """
-
     def __init__(self, preset=None, **kwargs):
 
         # Establish which settings to use
@@ -106,7 +104,12 @@ class Style:
     def time_format_length(self):
         """Returns the length in chars of the asctime
         with the current time format"""
-        return None
+        return len(time.strftime(self.time_format))
+
+    @property
+    def max_levelname_length(self):
+        """Gets the character length of the maximum level name."""
+        return len(max(logging._nameToLevel.keys(), key=len))
 
     @property
     def column_escape(self):
@@ -120,16 +123,124 @@ class Style:
         fmt = re.sub(self.column_escape, '', fmt)
         return fmt
 
+    @property
+    def n_columns(self):
+        if self.conf['fit_to_terminal']:
+            return shutil.get_terminal_size().columns
+        else:
+            return self.conf.get('n_columns')
+
+    def calculate_padding(self, column_dict, separator_dict):
+        """Function to evaluate column padding widths"""
+
+        # Iterate over the column dict as a first pass
+        # to determine the presence of fixed and adaptive
+        # length fields.
+        for k, v in column_dict.items():
+            used_padding = 0
+            adaptive_fields = []
+            contents = v['contents']
+
+            # Add the space in this segment not dedicated to
+            # log record components
+            contents_no_formats = re.sub(r'\{\S+?\}', '', contents)
+            used_padding += len(contents_no_formats)
+            # print('No formats "'+contents_no_formats+'"')
+            # print(k, v['fields'])
+
+            # Iter over fields in this segment to get
+            # fixed and adaptive fields.
+            for f in v['fields']:
+                if f == 'levelname':
+                    used_padding += self.max_levelname_length
+                elif f == 'asctime':
+                    used_padding += self.time_format_length
+                # On the first pass note the adaptive elements.
+                else:
+                    adaptive_fields.append(f)
+            v['used_padding'] = used_padding
+            v['adaptive_fields'] = adaptive_fields
+
+        print(column_dict)
+
+        total_used_space = sum([v['used_padding'] for v
+                                in column_dict.values()])
+
+        # Add space used on separators
+        separator_padding = 0
+        for k, v in separator_dict.items():
+            separator_padding += v['len']
+        total_used_space += separator_padding
+        print(total_used_space)
+
+        adaptive_fields = [
+            x for y in list(v['adaptive_fields'] for v
+                            in column_dict.values())
+            for x in y
+        ]
+
+        print(adaptive_fields)
+
+        # Normalise adaptive fields to space left
+        space_for_adaptive = self.n_columns - total_used_space
+        print('space remaining', space_for_adaptive)
+
+        adaptive_fields_dict = {}
+        weights = self.conf['padding']
+
+        for i, f in enumerate(adaptive_fields):
+            weight = weights.get(f, weights['default'])
+            adaptive_fields_dict[i] = {'field': f, 'weight': weight}
+
+        print(adaptive_fields_dict)
+
+        total_weights = sum(v['weight'] for v in adaptive_fields_dict.values())
+        print(total_weights)
+        for v in adaptive_fields_dict.values():
+            v['char_length'] = math.floor(
+                (v['weight'] / total_weights) * space_for_adaptive
+            )
+        print(adaptive_fields_dict)
+
+        ad2 = {}
+        for v in adaptive_fields_dict.values():
+            f = v['field']
+            if f not in ad2:
+                ad2[f] = v['char_length']
+
+        print(ad2)
+
+        # We've used floors so might have multiple chars to spare.
+        # Consider incrementing the message char_length here if the sum
+        # is below the space_for_adaptive
+
+        test_padding = 0
+        for k, v in column_dict.items():
+            for f in v['adaptive_fields']:
+                char_length = ad2[f]
+                v['used_padding'] += char_length
+            test_padding += v['used_padding']
+
+        print(test_padding, separator_padding)
+
+        # Add space used on separators
+        # for k, v in separator_dict.items():
+        #     used_padding += v['len']
+        #
+        # print(used_padding)
+
+        # Find fixed width segments.
+        #     used_padding += self.time_format_length
+            # all_fields.remove('asctime')
+
     def append_column_justifications(self, column_dict):
         """Method to take the column dict created by generate_column_settings
         and insert column-wide settings like justification."""
-        print(column_dict)
         just_conf = self.conf['justify']
         default = just_conf['default']
         to_ljust = just_conf.get('left', [])
         to_rjust = just_conf.get('right', [])
         to_cjust = just_conf.get('center', [])
-        # print(to_ljust, to_rjust, to_cjust)
 
         for d in column_dict.values():
             fields = d['fields']
@@ -200,6 +311,8 @@ class Style:
         # print(separator_dict)
         # print(template)
         self.append_column_justifications(column_dict)
+        self.calculate_padding(column_dict, separator_dict)
+
         return {
             'columns': column_dict,
             'separators': separator_dict,
