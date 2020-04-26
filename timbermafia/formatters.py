@@ -7,6 +7,12 @@ from timbermafia.utils import *
 
 class TMFormatter2(logging.Formatter):
 
+    def __init__(self, fmt=None, time_fmt=None, style='%',
+                 validate=False, timbermafia_style=None):
+
+        super().__init__(fmt, time_fmt, style, validate=validate)
+        self.style = timbermafia_style
+
     def format(self, record):
         # Convert the message string to an TMString with enhanced fmt_spec
         record.message = TMString(record.getMessage())
@@ -30,6 +36,7 @@ class TMFormatter2(logging.Formatter):
             if s[-1:] != "\n":
                 s = s + "\n"
             s = s + self.formatStack(record.stack_info)
+        # print(s)
         return s
 
 #

@@ -116,7 +116,7 @@ class RainbowStreamHandler(logging.StreamHandler):
 
     def colorize(self, message, record, to_reset=True):
         level = record if isinstance(record, str) else record.levelno
-        print(level)
+        # print(level)
         if level in self.palette_dict:
             fg_color, bg_color, bold = self.palette_dict[level]
             parameters = []
@@ -150,7 +150,7 @@ class RainbowStreamHandler(logging.StreamHandler):
 
             # File and URLs
             parts = message.split(' ')
-            print(parts)
+            # print(parts)
             for index, part in enumerate(parts):
                 if not part:
                     continue
