@@ -1,21 +1,22 @@
 import logging
-import shutil
-import copy
-import inspect
+# import shutil
+import re
+import string
 import sys
 import timbermafia.formats
 from timbermafia.rainbow import RainbowStreamHandler, RainbowFileHandler, palette_dict
-from timbermafia.formatters import TMFormatter2
-from timbermafia.utils import *
-from collections.abc import Iterable
+from timbermafia.formatters import TimbermafiaFormatter
+import timbermafia.utils as utils
+
+# from timbermafia.utils import *
 
 log = logging.getLogger(__name__)
 
-t_size = shutil.get_terminal_size()
+# t_size = shutil.get_terminal_size()
 
-left = str.ljust
-right = str.rjust
-center = str.center
+# left = str.ljust
+# right = str.rjust
+# center = str.center
 
 
 STYLES = {
@@ -26,22 +27,27 @@ STYLES = {
 
 STYLE_DEFAULTS = {
     'smart_names': True,
-    'justify': {'default': right, 'left_fields': ['message']},
+    'justify': {
+        'default': str.rjust,
+        'left_fields': ['message']
+        },
     'time_format': '%H:%M:%S',
     'padding': {},
-    'log_format': '{asctime:u} _| {name}.{funcName} __>> {message:>15}',
+    'log_format': '{asctime:u} _| {name}.{funcName} __>> {message:b,>118}',
     'column_escape': '_',
     'format_style': '{',
 }
 
 
 class Style:
-    """Class to hold style settings used in timbermafia
-    logging subclasses."""
+    """
+    Class to hold style settings used in timbermafia
+    logging subclasses.
+    """
 
-    def __init__(self, preset=None, fmt=None, **kwargs):
+    def __init__(self, preset=None, **kwargs):
 
-        # Establish where we pull settings from
+        # Establish which settings to use
         conf = STYLE_DEFAULTS
         if preset:
             try:
@@ -50,8 +56,13 @@ class Style:
                 print(e)
                 raise
 
-        # Explicitly set the properties a logging.Formatter expects
-        # and that need verification.
+        # Protected settings
+        self._fmt = None
+        self._time_fmt = None
+        self._fmt_style = None
+
+        # Explicitly set the properties a logging.Formatter object
+        # expects that need custom verification
         self.format_style = kwargs.get('format_style', conf['format_style'])
         self.log_format = kwargs.get('log_format', conf['log_format'])
         self.time_format = kwargs.get('time_format', conf['time_format'])
@@ -107,10 +118,63 @@ class Style:
         fmt = re.sub(self.column_escape, '', fmt)
         return fmt
 
+    def generate_column_settings(self):
+        """
+        Function to parse the log format to understand any column
+        and separator specification, and return the information
+        in a dict.
+        """
+        fmt = self.log_format
+        partial_text = re.sub(utils.column_sep_pattern,
+                              self.column_escape, fmt)
+        # print(partial_text)
 
-def configure_formatter(style):
-    """Simple function to create an instance of the timbermafia formatter"""
-    return TMFormatter2(
+        parts = partial_text.split(self.column_escape)
+        column_dict = {k: {'contents': v} for k, v in enumerate(parts)
+                       if re.match(utils.logrecord_present_pattern, v)}
+
+        for k, d in column_dict.items():
+            s = d['contents']
+            d['fields'] = re.findall(r'(?<=\{)[a-zA-Z]+(?=[\}:])', s)
+
+        template = fmt
+        for i, d in column_dict.items():
+            s = d['contents']
+            template = template.replace(s, '{'+str(i)+'}')
+        # print(template)
+
+        separators = re.findall(utils.column_sep_pattern, fmt)
+        # print(separators)
+        separator_dict = {}
+        for sep, a in zip(separators, string.ascii_lowercase):
+            unescaped = sep.replace(self.column_escape, '')
+            d = {
+                'original_content': sep,
+                'contents': unescaped,
+                'len': len(unescaped),
+                'multiline': '__' in sep,
+            }
+            separator_dict[a] = d
+
+        # Now substitute the separators
+        for sep, d in separator_dict.items():
+            # print(sep)
+            template = template.replace(d['original_content'], '{'+sep+'}', 1)
+
+        # print(column_dict)
+        # print(separator_dict)
+        # print(template)
+        return {
+            'columns': column_dict,
+            'separators': separator_dict,
+            'template': template
+        }
+
+
+def configure_custom_formatter(style):
+    """Simple function to use a Style to create
+    a timbermafia formatter instance."""
+    return TimbermafiaFormatter(
         style.log_format,
         style.time_format,
         style.format_style,
@@ -118,9 +182,19 @@ def configure_formatter(style):
     )
 
 
+def configure_default_formatter(style):
+    """Simple function to use a Style to create
+    a basic logging.Formatter instance."""
+    return logging.Formatter(
+        style.simple_log_format,
+        style.time_format,
+        style.format_style
+    )
+
+
 def basic_config(
         style=None, fmt=None, stream=sys.stdout, filename=None,
-        clear=False, basic_files=True, handlers=None, level=logging.INFO,
+        clear=False, basic_files=True, handlers=None, level=logging.DEBUG,
         ):
     """Function for basic configuration of timbermafia logging.
 
@@ -132,7 +206,7 @@ def basic_config(
         # Reference to the root logger
         logger = logging.root
 
-        # Reset handlers on request
+        # Reset existing handlers if needed
         handlers = handlers if handlers else []
         if clear:
             for h in logger.handlers[:]:
@@ -145,20 +219,21 @@ def basic_config(
         my_style = Style(style=style, fmt=fmt)
 
         if use_custom_formatter:
-            custom_formatter = configure_formatter(my_style)
+            custom_formatter = configure_custom_formatter(my_style)
 
         use_default_formatter = filename and not basic_files
         if use_default_formatter:
             # In line below we'll add the basic format from the style property
-            default_formatter = logging.Formatter(my_style.simple_format)
+            default_formatter = configure_default_formatter(my_style)
 
-        # Add streamhandler if specified
+        # Add stream handler if specified
         if stream:
             # h = logging.StreamHandler(stream=sys.stdout)
             h = RainbowStreamHandler(stream=sys.stdout)
             h.setFormatter(custom_formatter)
             handlers.append(h)
 
+        # Add file handler if specified
         if filename:
             h = logging.FileHandler(filename)
             if basic_files:
@@ -180,343 +255,13 @@ def basic_config(
         logging._releaseLock()  # again don't like this
 
 
-
-
-# def add_handler(style=None, format=None,
-#                 stream=sys.stdout, filename=None,
-#                 clear=False, simple_files=True, handlers=None):
-#     # s = tm.generate_style_from_template('minimalist')
-#     # s.change_something
-#     # tm.configure(style='minimalist')
-#
-#     # Generate style
-#     my_style = Style(preset=style, format=format)
-#
-#     # Figure out handlers
-#     handler_list = []
-#     if stream:
-#         h = RainbowStreamHandler(# args here)
-#         handler_list.append(h)
-#     if filename:
-#         if simple_files:
-#             h = logging.FileHandler( # args here)
-#         else:
-#             h = RainbowFileHandler( # args here )
-#     if handlers:
-#         for h in handlers:
-#             if isinstance(h, logging.FileHandler):
-#                 if simple_files:
-
-
-# A dict of settings for predetermined styles
-#
-# style_dict = {
-#     'default':
-# }
-#     'default': {},
-#         'format': '{1} _| {2} __>> | {3}',
-#         '1': Column('{asctime}'),
-#         '2': Column('{name}.{funcName}'),
-#         '3': Column('{message}', justify=left),
-#     }
-
-
-# # Styles with preset configs
-# style_map = {
-#     'default': {},
-#     'simple': {
-#         'format': '{name}.{funcName} > {message}',
-#         'separator': '>',
-#         'show_separator': True,
-#         'sparse_separator': True,
-#         'enclose': False,
-#         'truncate': [],
-#         # 'truncate': ['name'],
-#         'name_padding': 8,
-#         'funcName_padding': 8,
-#         'justify': 'left',
-#         'justify_right': [],
-#         'line_separator': '-',
-#     },
-#     'minimalist': {
-#         'show_separator': False,
-#         'sparse_separators': False,
-#         'enclose': False,
-#         'format': '{asctime} | {name}.{funcName} | {message}',
-#         'truncate': [],
-#         'name_padding': 10,
-#         'funcName_padding': 10,
-#         'columns': int(t_size.columns * 1.),
-#     },
-#     'boxed': {
-#         'enclose': True,
-#         'time_format': "%H:%M:%S",
-#         'format': '{asctime} | {levelname} | {name}.{funcName} | {message}',
-#         'show_separator': True,
-#         'divide_lines': True,
-#         'truncate': [],
-#         'line_separator': '=',
-#         'sparse_separators': False,
-#     },
-#     'jupyter': {
-#         'bold': False,
-#         'show_separator': False,
-#         'enclose': False,
-#         'format': '{asctime} | {name}.{funcName} | {message}',
-#     },
-#     'doublespace': {
-#         'line_separator': ' ',
-#         'divide_lines': True,
-#         'sparse_separators': True,
-#         'enclose': False,
-#     }
-# }
-#
-# # Add monochrome styles
-# mono_styles = {}
-# for style in style_map:
-#     d = copy.deepcopy(style_map[style])
-#     d['monochrome'] = True
-#     mono_styles[f'{style}_mono'] = d
-# style_map.update(mono_styles)
-#
-# style_map['minimalist_mono']['format'] = '{asctime} | {levelname} | {name}.{funcName} | {message}'
-# style_map['simple_mono']['format'] = '{levelname} > {name}.{funcName} > {message}'
-
-# _valid_for_bools = [0, 1, True, False]
-# _valid_palettes = list(palette_dict.keys())
-# _valid_configs = {
-#     'palette': _valid_palettes,
-#     'monochrome': _valid_for_bools,
-#     'bold': _valid_for_bools,
-#     'enclose': _valid_for_bools,
-#     'show_separator': _valid_for_bools,
-#     'divide_lines': _valid_for_bools,
-#     'clean_names': _valid_for_bools,
-#     'sparse_separators': _valid_for_bools,
-#     'justify': ['left', 'right', 'center'],
-#     'separator_style': ['basic', 'smart', 'full'],
-#     'format_style': ['{'],
-#     'style': style_map.keys(),
-# }
-
-#
-#
-# # Defaults for timbermafia.config
-# _config = {
-#     # Handler settings
-#     'level': logging.DEBUG,
-#
-#     # Preset styles and settings
-#     'style': 'default',
-#     'palette': 'sensible',
-#     'monochrome': False,
-#     'bold': True,
-#     'enclose': False,
-#     'enclosers': [],
-#     'show_separator': True,
-#     'divide_lines': False,
-#     'line_separator': '~',
-#     'separator': '|',
-#     'separator_style': 'smart',
-#     'sparse_separators': True,
-#     'sparse_fields': ['message'],
-#     'clean_names': True,
-#
-#     # Justification options
-#     'justify': 'right',
-#     'justify_left': ['message'],
-#     'justify_right': [],
-#     'justify_center': [],
-#     'truncate': ['funcName'],
-#
-#     # Column and padding widths
-#     'columns': t_size.columns,
-#     'name_padding': 10,
-#     'funcName_padding': 10,
-#     'module_padding': 25,
-#     'pathname_padding': 40,
-#     'lineNo_padding': 4,
-#     'thread_padding': 15,
-#     'threadName_padding': 10,
-#
-#     # Default formats
-#     'format': '{asctime} | {levelname} | {name}.{funcName} | {message}',
-#     'time_format': '%H:%M:%S',
-#     'format_style': '{',  # this is what logging calls "style"
-# }
-#
-# _default_conf = copy.deepcopy(_config)
-#
-# # Defaults for add_handler
-# _config2 = {
-#     'filename': None,
-#     'stream': None,
-#     'log_name': None,
-#     'level': logging.DEBUG,
-#     'handlers': None,
-#     'clear': False,
-#     'enhance_logger': True,
-# }
-#
-#
-# def check_kwargs(kwargs, func_name):
-#     """Function to check arguments for configuration."""
-#     c = None
-#     if func_name == 'configure':
-#         c = _config
-#     elif func_name == 'add_handler':
-#         c = _config2
-#     for key, val in kwargs.items():
-#         if key in c:
-#             # If only pre-set configs allowed, check them
-#             if key in _valid_configs:
-#                 if val not in _valid_configs[key]:
-#                     vcs = [str(x) for x in _valid_configs[key]]
-#                     s = f'Value for {key}: {val}, must be ' \
-#                         f'one of {", ".join(vcs)}'
-#                     raise ValueError(s)
-#         # Intercept unknown args
-#         else:
-#             raise ValueError(f'Unknown argument: {key}')
-#
-#
-# def configure(**kwargs):
-#     """The user interface to setting timbermafia configuration."""
-#     check_kwargs(kwargs, 'configure')
-#     temp_dict = {}
-#
-#     # Get the style first if given, so we can reset the config
-#     # and the user can customise styles easily.
-#     style = kwargs.get('style')
-#     if style:
-#         _config.update(_default_conf)
-#         for setting, value in style_map[style].items():
-#             temp_dict[setting] = value
-#
-#     # Each time configure is called, recheck the padding.
-#     columns = kwargs.get('columns', shutil.get_terminal_size().columns)
-#     temp_dict['columns'] = columns
-#
-#     for key, val in kwargs.items():
-#         temp_dict[key] = val
-#
-#     # Check for inconsistent settings
-#     justification_dict = {}
-#     justification_dict.update(_config)
-#     justification_dict.update(temp_dict)
-#     just_lr = [x for x in justification_dict['justify_left']
-#                if x in justification_dict['justify_right']]
-#     just_lc = [x for x in justification_dict['justify_center']
-#                if x in justification_dict['justify_left']]
-#     just_rc = [x for x in justification_dict['justify_center']
-#                if x in justification_dict['justify_right']]
-#     print(justification_dict)
-#     if just_lr or just_lc or just_rc:
-#         justs = just_rc + just_lc + just_lr
-#         raise ValueError('Multiple justifications specified for '
-#                          'section : '+', '.join(justs))
-#
-#     _config.update(temp_dict)
-#
-#
-# def enhance(l):
-#     """Function to add a header function to the Logger class."""
-#     def timbermafia_header_04ce0a20e181(self, msg):
-#         self.info(divider())
-#         self.info(msg)
-#         self.info(divider())
-#     l.header = timbermafia_header_04ce0a20e181
-#
-#
-# def add_handler(**kwargs):
-#     """
-#     Configure one or more handlers.
-#     """
-#     check_kwargs(kwargs, 'add_handler')
-#     c = copy.deepcopy(_config)
-#
-#     formatter = TMFormatter(c['format'], c['time_format'],
-#                             config=c, style=c['format_style'])
-#
-#     user_formatter = kwargs.get('formatter')
-#     if user_formatter:
-#         if not isinstance(user_formatter, logging.Formatter):
-#             raise ValueError('formatter must be a '
-#                              'logging.Formatter based object')
-#         formatter = user_formatter
-#
-#     ###################################################################################
-#     # Configure handlers
-#     ###################################################################################
-#     handlers = []
-#
-#     # If given get user handlers
-#     user_handlers = kwargs.get('handlers', _config2['handlers'])
-#     if user_handlers:
-#         if not isinstance(user_handlers, Iterable):
-#             user_handlers = [user_handlers]
-#         for h in user_handlers:
-#             if not isinstance(h, logging.Handler):
-#                 raise ValueError('handlers must be a logging.Handler object or iterable'
-#                                  'of logging.Handler objects')
-#             h.setFormatter(formatter)
-#             handlers.append(h)
-#
-#     # Log level
-#     level = kwargs.get('level', _config['level'])
-#
-#     # Configure stream handler if required.
-#     stream = kwargs.get('stream', _config2['stream'])
-#     if stream:
-#         if not _config['monochrome']:
-#             s = RainbowStreamHandler(stream=stream,
-#                                      config=c)
-#         else:
-#             s = logging.StreamHandler(stream=stream)
-#         s.setFormatter(formatter)
-#         handlers.append(s)
-#
-#     # Configure file handler if required.
-#     filename = kwargs.get('filename', _config2['filename'])
-#     if filename:
-#         if not _config['monochrome']:
-#             f = RainbowFileHandler(filename, config=c)
-#         else:
-#             f = logging.FileHandler(filename)
-#         f.setFormatter(formatter)
-#         handlers.append(f)
-#
-#     ###################################################################################
-#     # Logger config
-#     ###################################################################################
-#     log_name = kwargs.get('log_name', _config2['log_name'])
-#     l = logging.getLogger(log_name)
-#
-#     # Reset handlers on request
-#     clear = kwargs.get('clear', _config2['clear'])
-#     if clear:
-#         for h in l.handlers[:]:
-#             l.removeHandler(h)
-#             h.close()
-#
-#     for h in handlers:
-#         h.setLevel(level)
-#         l.addHandler(h)
-#
-#     # Set level
-#     l.setLevel(level)
-#
-#     # Enhance the Logger class
-#     enhance_logger = kwargs.get('enhance_logger', _config2['enhance_logger'])
-#     if enhance_logger and not hasattr(logging.Logger, 'header'):
-#         enhance(logging.Logger)
-
-
 class Logged:
     """
     Inherit from this class to provide a mixin logger via
     the log property.
+
+    The log name ensures the root logger is in the logger
+    hierarchy, and that its handlers can be used.
     """
     @property
     def log(self):
