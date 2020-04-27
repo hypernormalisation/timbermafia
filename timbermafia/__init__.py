@@ -13,6 +13,8 @@ import timbermafia.utils as utils
 
 log = logging.getLogger(__name__)
 
+FIXED_LENGTH_FIELDS = ['asctime', 'levelname']
+
 STYLES = {
     'minimalist': {
         'default_format': '{asctime} _ {message}',
@@ -23,7 +25,8 @@ STYLE_DEFAULTS = {
     'smart_names': True,
     'justify': {
         'default': str.rjust,
-        'left': ['message']
+        'left': ['message'],
+        # 'right': ['funcName'],
         },
     'time_format': '%H:%M:%S',
     'padding': {
@@ -32,8 +35,10 @@ STYLE_DEFAULTS = {
         # 'name': 0.15,
         # 'funcName': 0.15,
     },
-    'truncate': ['name'],
-    'log_format': '{asctime:u} _| {levelname} _| {name}.{funcName} __>> {message:b,>118}',
+    'truncate': ['name', 'message'],
+    'truncation_chars': '...',
+    'log_format': 'test: _| {asctime:u} _| {name} {levelname}'
+                  ' _| {name}.{funcName} __>> {message:b,>118} END',
     'column_escape': '_',
     'format_style': '{',
     'fit_to_terminal': False,
@@ -43,15 +48,86 @@ STYLE_DEFAULTS = {
 
 class Column:
 
-    def __init__(self, fmt):
+    def __init__(self, fmt, justify=str.rjust, time_fmt='%H:%M:%S'):
+        # self.fmt = fmt
+        fmt = fmt.lstrip().rstrip()
+        self.time_fmt = time_fmt
         self.fmt = fmt
-        self.fmt_stripped = fmt.lstrip().rstrip()
         self.fmt_basic = re.sub(r'(?<=\w):\S+(?=[\}:])', '', fmt)
         self.fields = re.findall(r'(?<=\{)[a-zA-Z]+(?=[\}:])', fmt)
-        # print(self.__dict__)
+        self.justify = justify
+        self.multiline = False
+        self.adaptive_fields = [x for x in self.fields
+                                if x not in FIXED_LENGTH_FIELDS]
+
+        # Count any space used by the template string that
+        # won't be formatted with a log record component
+        self.reserved_padding = 0
+        self.count_reserved_padding()
+
+    def count_reserved_padding(self):
+        """
+        Count the padding as much as is possible without
+        considering adaptive fields. If no adaptive fields are present
+        the count is complete.
+
+        Considers space in the format string that will not be formatted
+        by a log record component, and the fixed length asctime and max
+        length of any log levelname.
+        """
+
+        # Add space from the template that won't be formatted
+        contents_no_formats = re.sub(r'\{\S+?\}', '', self.fmt)
+        self.reserved_padding += len(contents_no_formats)
+        # print(self.fields)
+        # If time is present add it.
+        if 'asctime' in self.fields:
+            self.reserved_padding += self.time_format_length
+
+        # If levelname present add it.
+        if 'levelname' in self.fields:
+            self.reserved_padding += self.max_levelname_length
+
+    @property
+    def max_levelname_length(self):
+        """Gets the character length of the maximum level name."""
+        return len(max(logging._nameToLevel.keys(), key=len))
+
+    @property
+    def time_format_length(self):
+        """Returns the length in chars of the asctime
+        with the current time format"""
+        return len(time.strftime(self.time_fmt))
 
     def __str__(self):
-        return 'Column({})'.format(self.fmt)
+        return 'Column("{}")'.format(self.fmt)
+
+    def truncate_input(self, record_dict):
+        """Truncate the elements in place as needed.
+        Need to account for non-formatted space too!"""
+        fmt = self.fmt_basic
+        # print(fmt)
+        new_fmt = ''
+        while fmt and len(new_fmt) <= self.reserved_padding:
+            c = fmt[-1]
+            # print(c)
+            # If not a format component
+            if c != '}':
+                new_fmt = new_fmt + c
+                fmt = fmt[:-1]
+            else:
+                index = fmt.rfind('{')
+                print(index)
+                print(fmt[index:])
+                print(fmt)
+                record_component = fmt[index:][1:-1]
+                print('record component:', record_component)
+                s = record_dict[record_component]
+                fmt = fmt[:index]
+                if len(s) > (self.reserved_padding - len(new_fmt)):
+                    print('cannot fit all this component in')
+
+            # At this point get the new format and the altered record components.
 
 
 class Separator:
@@ -59,7 +135,7 @@ class Separator:
         self.content = content
         self.column_escape = column_escape
         self.content_escaped = content.replace(column_escape, '')
-        self.len = len(self.content_escaped)
+        self.length = len(self.content_escaped)
         self.multiline = '__' in self.content
         # print(self.__dict__)
 
@@ -83,13 +159,17 @@ class Style:
         self._fmt = None
         self._time_fmt = None
         self._fmt_style = None
+        self._column_dict = {}
+        self._single_line_output = None
+        self._fields = None
 
         # Explicitly set the properties a logging.Formatter object
         # expects that need custom verification
         self.format_style = kwargs.get('format_style', conf['format_style'])
+
         self.log_format = kwargs.get('log_format', conf['log_format'])
         self.time_format = kwargs.get('time_format', conf['time_format'])
-
+        print(self.log_format)
         # Bundle other settings in a dict.
         self.conf = conf
 
@@ -123,11 +203,11 @@ class Style:
         # regex check here
         self._time_fmt = f
 
-    @property
-    def time_format_length(self):
-        """Returns the length in chars of the asctime
-        with the current time format"""
-        return len(time.strftime(self.time_format))
+    # @property
+    # def time_format_length(self):
+    #     """Returns the length in chars of the asctime
+    #     with the current time format"""
+    #     return len(time.strftime(self.time_format))
 
     @property
     def max_levelname_length(self):
@@ -159,67 +239,70 @@ class Style:
         else:
             return self.conf.get('n_columns')
 
+    @property
+    def default_justify(self):
+        return self.conf['justify'].get('default', str.rjust)
+
+    @property
+    def fields(self):
+        if not self._column_dict:
+            self.generate_column_settings()
+        if self._fields is None:
+            self._fields = [
+                x for y in list(c.fields for c
+                                in self._column_dict.values())
+                for x in y
+            ]
+        return self._fields
+
+    @property
+    def single_line_output(self):
+        """Property to determine if the output with this format
+        is restricted to a single line output"""
+        if not self._column_dict:
+            self.generate_column_settings()
+        if self._single_line_output is None:
+            # print([c.multiline for c in self._column_dict.values()])
+            b = all([c.multiline is False for c in self._column_dict.values()])
+            # print('bool says:', b)
+            self._single_line_output = b
+        return self._single_line_output
+
     def calculate_padding(self, column_dict, separator_dict, template):
         """Function to evaluate column padding widths"""
 
-        # Iterate over the column dict as a first pass
-        # to determine the presence of fixed and adaptive
-        # length fields.
-        for k, v in column_dict.items():
-            used_padding = 0
-            adaptive_fields = []
-            contents = v['contents']
-
-            # Add the space in this segment not dedicated to
-            # log record components
-            contents_no_formats = re.sub(r'\{\S+?\}', '', contents)
-            used_padding += len(contents_no_formats)
-            # print('No formats "'+contents_no_formats+'"')
-            # print(k, v['fields'])
-
-            # Iter over fields in this segment to get
-            # fixed and adaptive fields.
-            for f in v['fields']:
-                if f == 'levelname':
-                    used_padding += self.max_levelname_length
-                elif f == 'asctime':
-                    used_padding += self.time_format_length
-                # On the first pass note the adaptive elements.
-                else:
-                    adaptive_fields.append(f)
-            v['used_padding'] = used_padding
-            v['adaptive_fields'] = adaptive_fields
-
-        # print(column_dict)
-
-        total_used_space = sum([v['used_padding'] for v
+        # Get the total reserved space from each column,
+        # which does not account for any adaptive
+        # length record components.
+        total_used_space = sum([c.reserved_padding for c
                                 in column_dict.values()])
 
         # Add spaces from the template
         # ws = [i for i in template if i.is]
-        non_special_chars = [s for s in
-                             re.findall(r'(.*?)\{.*?\}', template) if s]
-        # print(len(non_special_chars))
-        # total_used_space += len(non_special_chars)
+        non_special_chars = ''.join(
+            [s for s in re.findall(r'(.*?)\{.*?\}', template) if s]
+        )
+        # print(non_special_chars)
+        print(len(non_special_chars))
+        total_used_space += len(non_special_chars)
 
         # Add space used on separators
         separator_padding = 0
-        for k, v in separator_dict.items():
-            separator_padding += v['len']
+        for s in separator_dict.values():
+            separator_padding += s.length
         total_used_space += separator_padding
-        # print(total_used_space)
+        print(total_used_space)
 
         adaptive_fields = [
-            x for y in list(v['adaptive_fields'] for v
+            x for y in list(c.adaptive_fields for c
                             in column_dict.values())
             for x in y
         ]
-
         # print(adaptive_fields)
 
         # Normalise adaptive fields to space left
         space_for_adaptive = self.n_columns - total_used_space
-        # print('space remaining', space_for_adaptive)
+        print('space remaining', space_for_adaptive)
 
         adaptive_fields_dict = {}
         weights = self.conf['padding']
@@ -232,17 +315,17 @@ class Style:
 
         total_weights = sum(v['weight'] for v in adaptive_fields_dict.values())
         # print(total_weights)
-        for v in adaptive_fields_dict.values():
-            v['char_length'] = math.floor(
-                (v['weight'] / total_weights) * space_for_adaptive
+        for d in adaptive_fields_dict.values():
+            d['char_length'] = math.floor(
+                (d['weight'] / total_weights) * space_for_adaptive
             )
         # print(adaptive_fields_dict)
 
         ad2 = {}
-        for v in adaptive_fields_dict.values():
-            f = v['field']
+        for d in adaptive_fields_dict.values():
+            f = d['field']
             if f not in ad2:
-                ad2[f] = v['char_length']
+                ad2[f] = d['char_length']
 
         # print(ad2)
 
@@ -251,62 +334,57 @@ class Style:
         # is below the space_for_adaptive
 
         test_padding = 0
-        for k, v in column_dict.items():
-            for f in v['adaptive_fields']:
+        for c in column_dict.values():
+            for f in c.adaptive_fields:
                 char_length = ad2[f]
-                v['used_padding'] += char_length
-            test_padding += v['used_padding']
+                c.reserved_padding += char_length
+            test_padding += c.reserved_padding
 
         # print(test_padding, separator_padding)
-
-        # Indicate for each column if multiline spillover is a
-        # possibility to make Formatter checks quicker.
-        # This is only possible if there are adaptive fields present,
-        # and none of them are in the truncate setting.
-        for v in column_dict.values():
-            truncate = False
-            a = v['adaptive_fields']
-            if a:
-                for field in a:
-                    if field in self.conf['truncate']:
-                        truncate = True
-            if a and not truncate:
-                v['can_be_multiline'] = True
-            else:
-                v['can_be_multiline'] = False
-
         deficit = self.n_columns - test_padding - separator_padding
 
-    def append_column_justifications(self, column_dict):
-        """Method to take the column dict created by generate_column_settings
-        and insert column-wide settings like justification."""
+    def evaluate_multiline_possibility(self, column_dict):
+        """Figure out it is possible that a column requires
+        multiple lines of output"""
+        for c in column_dict.values():
+            truncate = False
+            if c.adaptive_fields:
+                for field in c.adaptive_fields:
+                    if field in self.conf['truncate']:
+                        truncate = True
+            if c.adaptive_fields and not truncate:
+                c.multiline = True
+
+    def set_column_justifications(self, column_dict):
+        """If required changes the Column.justify values
+        to non-defaults."""
         just_conf = self.conf['justify']
-        default = just_conf['default']
         to_ljust = just_conf.get('left', [])
         to_rjust = just_conf.get('right', [])
         to_cjust = just_conf.get('center', [])
 
-        for d in column_dict.values():
-            fields = d['fields']
-            override = False
-            for field in fields:
-                # print(field)
-                if field in to_ljust:
-                    d['justify'] = str.ljust
-                    override = True
-                    continue
-                if field in to_rjust:
-                    override = True
-                    d['justify'] = str.rjust
-                    continue
-                if field in to_cjust:
-                    override = True
-                    d['justify'] = str.center
-                    continue
-            # If no fields have a value use the default
-            if not override:
-                d['justify'] = default
-        # print(column_dict)
+        just_d = {
+            str.ljust: to_ljust,
+            str.rjust: to_rjust,
+            str.center: to_cjust,
+        }
+
+        for c in column_dict.values():
+            justification_settings = []
+            for func, fields_to_just in just_d.items():
+
+                # print(bool(justification_settings))
+                for f in c.fields:
+                    if f in fields_to_just:
+                        if not justification_settings:
+                            c.justify = func
+                            justification_settings.append(f)
+                        else:
+                            justification_settings.append(f)
+                            print('Warning: multiple contagious justifications '
+                                  f'specified in {c}'
+                                  f' for fields: {",".join(justification_settings)}. '
+                                  f'Using {c.justify}')
 
     def generate_column_settings(self):
         """
@@ -314,60 +392,40 @@ class Style:
         and separator specification, and return the information
         in a dict.
         """
-        # Log segments with fmt_spec
+
+        # Reset recorded settings from any possible previous configs.
+        self._single_line_output = None
+        self._fields = None
+
         fmt = self.log_format
         partial_text = re.sub(utils.column_sep_pattern,
                               self.column_escape, fmt)
         parts = partial_text.split(self.column_escape)
 
-        # Non-fmt_spec templates
-        # fmt_basic = self.no_ansi_log_format
-        # partial_text_basic = re.sub(utils.column_sep_pattern,
-        #                             self.column_escape, fmt_basic)
-        # parts_basic = partial_text.split(self.column_escape)
+        # Filter parts without a log record component
+        parts = [ x for x in parts if
+            utils.logrecord_present_pattern.match(x)
+        ]
 
-        column_dict = {k: Column(v) for k, v
-                       in zip(string.ascii_uppercase, parts)}
-        # print(column_dict)
+        print(parts)
+        print(self.time_format)
+        column_dict = {k: Column(
+            part, justify=self.default_justify,
+            time_fmt=self.time_format
+            ) for k, part in zip(string.ascii_uppercase, parts)
+        }
 
-        # column_dict = {k: {
-        #     'contents': v.lstrip().rstrip(),
-        #     'contents_basic': x.lstrip().rstrip()
-        #     }
-        #     for k, v, x in zip(string.ascii_uppercase, parts, parts_basic)
-        #     if re.match(utils.logrecord_present_pattern, v)
-        # }
-        #
-        # for c in column_dict2.values():
-        #     s = c.fmt
-        #     d['fields'] = re.findall(r'(?<=\{)[a-zA-Z]+(?=[\}:])', s)
-
-        # Create a template for the formatted separators and columns
-        # to go into.
-
+        # Create a template for the formatted separator and column
+        # content to go into.
         template = fmt
         for key, c in column_dict.items():
-            template = template.replace(c.fmt_stripped,
-                                        '{'+key+'}')
-        # print(template)
+            template = template.replace(c.fmt, '{'+key+'}', 1)
 
         separators = re.findall(utils.column_sep_pattern, fmt)
-        # print(separators)
-        # separator_dict = {}
         separator_dict = {
             k: Separator(sep, self.column_escape) for k, sep in
             zip(string.ascii_lowercase, separators)
         }
-        # print(separator_dict)
-        # for sep, a in zip(separators, string.ascii_lowercase):
-        #     unescaped = sep.replace(self.column_escape, '')
-        #     d = {
-        #         'original_content': sep,
-        #         'contents': unescaped,
-        #         'len': len(unescaped),
-        #         'multiline': '__' in sep,
-        #     }
-        #     separator_dict[a] = d
 
         # Now substitute the separators sequentially in case of
         # identical separators.
@@ -377,8 +435,12 @@ class Style:
         print(column_dict)
         print(separator_dict)
         print(template)
-        self.append_column_justifications(column_dict)
+        self.set_column_justifications(column_dict)
         self.calculate_padding(column_dict, separator_dict, template)
+        self.evaluate_multiline_possibility(column_dict)
+
+        # Internally assign these attributes.
+        self._column_dict = column_dict
 
         return {
             'columns': column_dict,
