@@ -28,10 +28,11 @@ STYLE_DEFAULTS = {
     'time_format': '%H:%M:%S',
     'padding': {
         'default': 0.2,
-        'message': 0.6,
+        'message': 0.8,
         # 'name': 0.15,
         # 'funcName': 0.15,
     },
+    'truncate': ['name'],
     'log_format': '{asctime:u} _| {levelname} _| {name}.{funcName} __>> {message:b,>118}',
     'column_escape': '_',
     'format_style': '{',
@@ -124,13 +125,19 @@ class Style:
         return fmt
 
     @property
+    def no_ansi_log_format(self):
+        fmt = self.log_format
+        fmt = re.sub(r'(?<=\w):\S+(?=[\}:])', '', fmt)
+        return fmt
+
+    @property
     def n_columns(self):
         if self.conf['fit_to_terminal']:
             return shutil.get_terminal_size().columns
         else:
             return self.conf.get('n_columns')
 
-    def calculate_padding(self, column_dict, separator_dict):
+    def calculate_padding(self, column_dict, separator_dict, template):
         """Function to evaluate column padding widths"""
 
         # Iterate over the column dict as a first pass
@@ -161,17 +168,24 @@ class Style:
             v['used_padding'] = used_padding
             v['adaptive_fields'] = adaptive_fields
 
-        print(column_dict)
+        # print(column_dict)
 
         total_used_space = sum([v['used_padding'] for v
                                 in column_dict.values()])
+
+        # Add spaces from the template
+        # ws = [i for i in template if i.is]
+        non_special_chars = [s for s in
+                             re.findall(r'(.*?)\{.*?\}', template) if s]
+        # print(len(non_special_chars))
+        # total_used_space += len(non_special_chars)
 
         # Add space used on separators
         separator_padding = 0
         for k, v in separator_dict.items():
             separator_padding += v['len']
         total_used_space += separator_padding
-        print(total_used_space)
+        # print(total_used_space)
 
         adaptive_fields = [
             x for y in list(v['adaptive_fields'] for v
@@ -179,11 +193,11 @@ class Style:
             for x in y
         ]
 
-        print(adaptive_fields)
+        # print(adaptive_fields)
 
         # Normalise adaptive fields to space left
         space_for_adaptive = self.n_columns - total_used_space
-        print('space remaining', space_for_adaptive)
+        # print('space remaining', space_for_adaptive)
 
         adaptive_fields_dict = {}
         weights = self.conf['padding']
@@ -192,15 +206,15 @@ class Style:
             weight = weights.get(f, weights['default'])
             adaptive_fields_dict[i] = {'field': f, 'weight': weight}
 
-        print(adaptive_fields_dict)
+        # print(adaptive_fields_dict)
 
         total_weights = sum(v['weight'] for v in adaptive_fields_dict.values())
-        print(total_weights)
+        # print(total_weights)
         for v in adaptive_fields_dict.values():
             v['char_length'] = math.floor(
                 (v['weight'] / total_weights) * space_for_adaptive
             )
-        print(adaptive_fields_dict)
+        # print(adaptive_fields_dict)
 
         ad2 = {}
         for v in adaptive_fields_dict.values():
@@ -208,7 +222,7 @@ class Style:
             if f not in ad2:
                 ad2[f] = v['char_length']
 
-        print(ad2)
+        # print(ad2)
 
         # We've used floors so might have multiple chars to spare.
         # Consider incrementing the message char_length here if the sum
@@ -221,17 +235,27 @@ class Style:
                 v['used_padding'] += char_length
             test_padding += v['used_padding']
 
-        print(test_padding, separator_padding)
+        # print(test_padding, separator_padding)
 
-        # Add space used on separators
-        # for k, v in separator_dict.items():
-        #     used_padding += v['len']
-        #
-        # print(used_padding)
+        # Indicate for each column if multiline spillover is a
+        # possibility to make Formatter checks quicker.
+        # This is only possible if there are adaptive fields present,
+        # and none of them are in the truncate setting.
+        for v in column_dict.values():
+            truncate = False
+            a = v['adaptive_fields']
+            if a:
+                for field in a:
+                    if field in self.conf['truncate']:
+                        truncate = True
+            if a and not truncate:
+                v['can_be_multiline'] = True
+            else:
+                v['can_be_multiline'] = False
 
-        # Find fixed width segments.
-        #     used_padding += self.time_format_length
-            # all_fields.remove('asctime')
+        deficit = self.n_columns - test_padding - separator_padding
+
+
 
     def append_column_justifications(self, column_dict):
         """Method to take the column dict created by generate_column_settings
@@ -276,11 +300,22 @@ class Style:
         # print(partial_text)
 
         parts = partial_text.split(self.column_escape)
-        column_dict = {k: {'contents': v} for k, v in enumerate(parts)
+        column_dict = {k: {'contents': v.lstrip().rstrip()}
+                       for k, v in enumerate(parts)
                        if re.match(utils.logrecord_present_pattern, v)}
+
+        # Add non-fmt_spec templates
+        fmt_basic = self.no_ansi_log_format
+        partial_text = re.sub(utils.column_sep_pattern,
+                              self.column_escape, fmt_basic)
+        parts = partial_text.split(self.column_escape)
+        for k, v in enumerate(parts):
+            column_dict[k]['contents_basic'] = v.lstrip().rstrip()
 
         for k, d in column_dict.items():
             s = d['contents']
+            # s = d['contents'].lstrip().rstrip()
+            # print(s)
             d['fields'] = re.findall(r'(?<=\{)[a-zA-Z]+(?=[\}:])', s)
 
         template = fmt
@@ -311,7 +346,7 @@ class Style:
         # print(separator_dict)
         # print(template)
         self.append_column_justifications(column_dict)
-        self.calculate_padding(column_dict, separator_dict)
+        self.calculate_padding(column_dict, separator_dict, template)
 
         return {
             'columns': column_dict,
