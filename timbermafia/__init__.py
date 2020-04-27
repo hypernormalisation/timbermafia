@@ -41,6 +41,28 @@ STYLE_DEFAULTS = {
 }
 
 
+class Column:
+
+    def __init__(self, fmt):
+        self.fmt = fmt
+        self.fmt_stripped = fmt.lstrip().rstrip()
+        self.fmt_basic = re.sub(r'(?<=\w):\S+(?=[\}:])', '', fmt)
+        self.fields = re.findall(r'(?<=\{)[a-zA-Z]+(?=[\}:])', fmt)
+        # print(self.__dict__)
+
+    def __str__(self):
+        return 'Column({})'.format(self.fmt)
+
+
+class Separator:
+    def __init__(self, content, column_escape):
+        self.content = content
+        self.column_escape = column_escape
+        self.content_escaped = content.replace(column_escape, '')
+        self.len = len(self.content_escaped)
+        self.multiline = '__' in self.content
+        # print(self.__dict__)
+
 class Style:
     """
     Class to hold style settings used in timbermafia
@@ -255,8 +277,6 @@ class Style:
 
         deficit = self.n_columns - test_padding - separator_padding
 
-
-
     def append_column_justifications(self, column_dict):
         """Method to take the column dict created by generate_column_settings
         and insert column-wide settings like justification."""
@@ -294,57 +314,69 @@ class Style:
         and separator specification, and return the information
         in a dict.
         """
+        # Log segments with fmt_spec
         fmt = self.log_format
         partial_text = re.sub(utils.column_sep_pattern,
                               self.column_escape, fmt)
-        # print(partial_text)
-
         parts = partial_text.split(self.column_escape)
-        column_dict = {k: {'contents': v.lstrip().rstrip()}
-                       for k, v in enumerate(parts)
-                       if re.match(utils.logrecord_present_pattern, v)}
 
-        # Add non-fmt_spec templates
-        fmt_basic = self.no_ansi_log_format
-        partial_text = re.sub(utils.column_sep_pattern,
-                              self.column_escape, fmt_basic)
-        parts = partial_text.split(self.column_escape)
-        for k, v in enumerate(parts):
-            column_dict[k]['contents_basic'] = v.lstrip().rstrip()
+        # Non-fmt_spec templates
+        # fmt_basic = self.no_ansi_log_format
+        # partial_text_basic = re.sub(utils.column_sep_pattern,
+        #                             self.column_escape, fmt_basic)
+        # parts_basic = partial_text.split(self.column_escape)
 
-        for k, d in column_dict.items():
-            s = d['contents']
-            # s = d['contents'].lstrip().rstrip()
-            # print(s)
-            d['fields'] = re.findall(r'(?<=\{)[a-zA-Z]+(?=[\}:])', s)
+        column_dict = {k: Column(v) for k, v
+                       in zip(string.ascii_uppercase, parts)}
+        # print(column_dict)
+
+        # column_dict = {k: {
+        #     'contents': v.lstrip().rstrip(),
+        #     'contents_basic': x.lstrip().rstrip()
+        #     }
+        #     for k, v, x in zip(string.ascii_uppercase, parts, parts_basic)
+        #     if re.match(utils.logrecord_present_pattern, v)
+        # }
+        #
+        # for c in column_dict2.values():
+        #     s = c.fmt
+        #     d['fields'] = re.findall(r'(?<=\{)[a-zA-Z]+(?=[\}:])', s)
+
+        # Create a template for the formatted separators and columns
+        # to go into.
 
         template = fmt
-        for i, d in column_dict.items():
-            s = d['contents']
-            template = template.replace(s, '{'+str(i)+'}')
+        for key, c in column_dict.items():
+            template = template.replace(c.fmt_stripped,
+                                        '{'+key+'}')
         # print(template)
 
         separators = re.findall(utils.column_sep_pattern, fmt)
         # print(separators)
-        separator_dict = {}
-        for sep, a in zip(separators, string.ascii_lowercase):
-            unescaped = sep.replace(self.column_escape, '')
-            d = {
-                'original_content': sep,
-                'contents': unescaped,
-                'len': len(unescaped),
-                'multiline': '__' in sep,
-            }
-            separator_dict[a] = d
-
-        # Now substitute the separators
-        for sep, d in separator_dict.items():
-            # print(sep)
-            template = template.replace(d['original_content'], '{'+sep+'}', 1)
-
-        # print(column_dict)
+        # separator_dict = {}
+        separator_dict = {
+            k: Separator(sep, self.column_escape) for k, sep in
+            zip(string.ascii_lowercase, separators)
+        }
         # print(separator_dict)
-        # print(template)
+        # for sep, a in zip(separators, string.ascii_lowercase):
+        #     unescaped = sep.replace(self.column_escape, '')
+        #     d = {
+        #         'original_content': sep,
+        #         'contents': unescaped,
+        #         'len': len(unescaped),
+        #         'multiline': '__' in sep,
+        #     }
+        #     separator_dict[a] = d
+
+        # Now substitute the separators sequentially in case of
+        # identical separators.
+        for key, s in separator_dict.items():
+            template = template.replace(s.content, '{'+key+'}', 1)
+
+        print(column_dict)
+        print(separator_dict)
+        print(template)
         self.append_column_justifications(column_dict)
         self.calculate_padding(column_dict, separator_dict, template)
 

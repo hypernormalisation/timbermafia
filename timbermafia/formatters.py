@@ -1,4 +1,4 @@
-import ansiwrap
+# import ansiwrap
 import logging
 import re
 import shutil
@@ -77,11 +77,12 @@ class TimbermafiaFormatter(logging.Formatter):
     def format_single_line(self, record):
         cd = self.conf['columns']
         string_d = {}
-        for newkey, (i, d) in zip(string.ascii_uppercase, cd.items()):
+        # for newkey, (i, d) in zip(string.ascii_uppercase, cd.items()):
+        for k, d in cd.items():
             # print(d['contents'])
             s = d['contents'].format(**record.__dict__)
             just = d['justify']
-            string_d[newkey] = just(s, d['used_padding'])
+            string_d[k] = just(s, d['used_padding'])
         print(string_d)
 
         sd = self.conf['separators']
