@@ -118,9 +118,12 @@ class TMString(str):
 
         # Reset the fmt_spec
         # fmt_spec = ''
-        return "".join(
-            ("".join(params), self.content, RESET)
-        )
+        if params:
+            return "".join(
+                ("".join(params), self.content, RESET)
+            )
+        else:
+            return self.content
 
 
 #
