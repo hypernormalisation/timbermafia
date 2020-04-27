@@ -74,27 +74,73 @@ class TimbermafiaFormatter(logging.Formatter):
                     multiline_dict[i] = l
         return multiline_dict
 
-    def format_single_line(self, record):
-        cd = self.conf['columns']
-        string_d = {}
-        # for newkey, (i, d) in zip(string.ascii_uppercase, cd.items()):
-        for k, d in cd.items():
-            # print(d['contents'])
-            s = d['contents'].format(**record.__dict__)
-            just = d['justify']
-            string_d[k] = just(s, d['used_padding'])
-        print(string_d)
+    # def format_single_column(self, record, column):
 
-        sd = self.conf['separators']
-        print(sd)
-        sd2 = {k: v['contents'] for k, v in sd.items()}
-        print(sd2)
-        sd2.update(string_d)
+    def format_single_line(self, record):
+        column_dict = self.conf['columns']
+
+        sd = {}
+        record_dict = {}
+
+        truncate_dict = {}
+
+
+        for key, c in column_dict.items():
+
+            # Get the message components we care about first.
+            column_record_dict = {
+                k: v for k, v in record.__dict__.items()
+                if k in c.fields
+            }
+
+            # Use the basic format to see if we need truncation.
+            s = c.fmt_basic.format(**column_record_dict)
+            print(c.fmt_basic, c.reserved_padding)
+            print(s, len(s))
+
+            if len(s) > c.reserved_padding:
+                print(f'{c} needs truncating')
+                c.truncate_input(column_record_dict)
+
+                # truncate_dict[key] = {
+                #     'c': c,
+                #     's': s,
+                # }
+        return ''
+
+        # print(truncate_dict)
+            # Then before padding, we truncate and justify
+
+
+            # print(record_dict)
+            # print(c.__dict__)
+            # s = c.fmt.format(**record.__dict__)
+            # just = c.justify
+            # # print(key, s, len(s), c.reserved_padding)
+            # sd[key] = just(s, c.reserved_padding)
+        # print(sd)
+
+        separator_dict = self.conf['separators']
+        print(separator_dict)
+        sd2 = {key: s.content_escaped for key, s in separator_dict.items()}
+        # print(sd2)
+        sd2.update(sd)
         template = self.conf['template']
-        template = '{A} {a} {B} {b} {C} {c} {D}'
+        # template = '{A} {a} {B} {b} {C} {c} {D}'
         print(template)
         return template.format(**sd2)
 
+    def convert_log_record_properties(self, record):
+        """Convert the log record's component strings to TMStrings."""
+        record.message = TMString(record.getMessage())
+        if self.usesTime():
+            record.asctime = TMString(self.formatTime(record, self.datefmt))
+        new_d = {}
+        for key, value in record.__dict__.items():
+            if key in self.style.fields and isinstance(value, str):
+                # print(f'converting {key}: {value}')
+                new_d[key] = TMString(value)
+        record.__dict__.update(new_d)
 
     def format(self, record):
 
@@ -103,24 +149,26 @@ class TimbermafiaFormatter(logging.Formatter):
             return super().format(record)
 
         # Convert the message string to an TMString with enhanced fmt_spec
-        record.message = TMString(record.getMessage())
-
-        # Convert the formatted ascitime string to an TMString with enhanced fmt_spec
+        record.message = record.getMessage()
+        #
+        # # Convert the formatted ascitime string to an TMString with enhanced fmt_spec
         if self.usesTime():
-            record.asctime = TMString(self.formatTime(record, self.datefmt))
+            record.asctime = self.formatTime(record, self.datefmt)
 
         # Convert any other strings
-        transform_record(record)
+        # self.convert_log_record_properties(record)
 
 
         # d = self.get_formatted_columns(record)
         # self.process_output(d)
-        print(self.conf['columns'])
-        multilines = self.get_multiline_outputs(record)
-        print(multilines)
+        # print(self.conf['columns'])
+        # multilines = self.get_multiline_outputs(record)
+        # print(multilines)
 
         s = ''
-        if not multilines:
+
+        # If the style is guaranteed a single line,
+        if self.style.single_line_output:
             s = self.format_single_line(record)
             # s = self.formatMessage(record)
         # if record.exc_info:
