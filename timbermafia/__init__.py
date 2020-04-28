@@ -22,7 +22,7 @@ STYLES = {
 }
 
 silly = ('test: _| {asctime:u} _| {name} {levelname}'
-         ' _| {name}.{funcName:b} __>> {message:b,>118} ENDMSG __|')
+         ' _| {name}.{funcName:b} __>> {message:b,>118} {thread} ENDMSG __|')
 
 STYLE_DEFAULTS = {
     'smart_names': True,
@@ -33,20 +33,21 @@ STYLE_DEFAULTS = {
         },
     'time_format': '%H:%M:%S',
     'padding': {
-        'default': 0.12,
+        'default': 0.2,
         'message': 0.9,
+        'threadName': 1.5,
         # 'name': 0.15,
         # 'funcName': 0.15,
     },
     'truncate': ['name', 'message'],
     'truncation_chars': '...',
-    'log_format': '{asctime:u} _| {levelname}'
-                  ' _| {name}.{funcName:b} __>> {message:b,>118}',
+    'log_format': '{asctime} _ {levelname} '
+                  '_ {name}.{funcName:u} __>> {message:>15}',
     'column_escape': '_',
     'format_style': '{',
     'fit_to_terminal': False,
     'n_columns': 120,
-    'clean_output': True,
+    'clean_output': False,
 }
 
 
@@ -155,18 +156,15 @@ class Column:
         """Truncate the elements in place as needed."""
 
         fmt_to_parse = self.fmt
-
         new_fmt = ''  # contains the new format
 
         # Contains the output content as it is pushed back
         running_total_content = ''
-
         fitted_component_dict = {}
 
         # The allowed padding is the reserved padding minus the
         # length of the truncation chars
         allowed_padding = self.reserved_padding - self.truncation_chars_length
-
         while fmt_to_parse and len(new_fmt) <= allowed_padding:
 
             # Final char in fmt string
@@ -272,7 +270,7 @@ class Style:
 
         self.log_format = kwargs.get('log_format', conf['log_format'])
         self.time_format = kwargs.get('time_format', conf['time_format'])
-        print(self.log_format)
+        # print(self.log_format)
         # Bundle other settings in a dict.
         self.conf = conf
 
@@ -395,7 +393,7 @@ class Style:
             [s for s in re.findall(r'(.*?)\{.*?\}', template) if s]
         )
         # print(non_special_chars)
-        print(len(non_special_chars))
+        # print(len(non_special_chars))
         total_used_space += len(non_special_chars)
 
         # Add space used on separators
@@ -403,7 +401,7 @@ class Style:
         for s in separator_dict.values():
             separator_padding += s.length
         total_used_space += separator_padding
-        print(total_used_space)
+        # print(total_used_space)
 
         adaptive_fields = [
             x for y in list(c.adaptive_fields for c
@@ -414,7 +412,7 @@ class Style:
 
         # Normalise adaptive fields to space left
         space_for_adaptive = self.n_columns - total_used_space
-        print('space remaining', space_for_adaptive)
+        # print('space remaining', space_for_adaptive)
 
         adaptive_fields_dict = {}
         weights = self.conf['padding']
@@ -519,8 +517,8 @@ class Style:
             utils.logrecord_present_pattern.match(x)
         ]
 
-        print(parts)
-        print(self.time_format)
+        # print(parts)
+        # print(self.time_format)
         column_dict = {k: Column(
             part, justify=self.default_justify,
             time_fmt=self.time_format,
@@ -545,9 +543,9 @@ class Style:
         for key, s in separator_dict.items():
             template = template.replace(s.content, '{'+key+'}', 1)
 
-        print(column_dict)
-        print(separator_dict)
-        print(template)
+        # print(column_dict)
+        # print(separator_dict)
+        # print(template)
         self.set_column_justifications(column_dict)
         self.calculate_padding(column_dict, separator_dict, template)
         self.evaluate_multiline_possibility(column_dict)
@@ -584,7 +582,7 @@ def configure_default_formatter(style):
 
 
 def basic_config(
-        style=None, fmt=None, stream=sys.stdout, filename=None,
+        style=None, fmt=None, stream=sys.stdout, filename=None, palette='sensible',
         clear=False, basic_files=True, handlers=None, level=logging.DEBUG,
         ):
     """Function for basic configuration of timbermafia logging.
@@ -620,7 +618,7 @@ def basic_config(
         # Add stream handler if specified
         if stream:
             # h = logging.StreamHandler(stream=sys.stdout)
-            h = RainbowStreamHandler(stream=sys.stdout)
+            h = RainbowStreamHandler(stream=sys.stdout, palette=palette)
             h.setFormatter(custom_formatter)
             handlers.append(h)
 

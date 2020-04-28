@@ -59,21 +59,21 @@ class TimbermafiaFormatter(logging.Formatter):
     #         # for i in l:
     #         #     print(i.encode('unicode_escape'))
 
-    def get_multiline_outputs(self, record):
-        multiline_dict = {}
-        for i, v in self.conf['columns'].items():
-            if v['can_be_multiline']:
-                s = v['contents_basic'].format(**record.__dict__)
-                print(s)
-                if len(s) > v['used_padding']:
-                    l = textwrap.wrap(s, v['used_padding'],
-                                      break_long_words=True)
-                    just = v['justify']
-                    l = [just(TMString(x), v['used_padding']) for x in l]
-                    for i in l:
-                        print(i)
-                    multiline_dict[i] = l
-        return multiline_dict
+    # def get_multiline_outputs(self, record):
+    #     multiline_dict = {}
+    #     for i, v in self.conf['columns'].items():
+    #         if v['can_be_multiline']:
+    #             s = v['contents_basic'].format(**record.__dict__)
+    #             # print(s)
+    #             if len(s) > v['used_padding']:
+    #                 l = textwrap.wrap(s, v['used_padding'],
+    #                                   break_long_words=True)
+    #                 just = v['justify']
+    #                 l = [just(TMString(x), v['used_padding']) for x in l]
+    #                 for i in l:
+    #                     # print(i)
+    #                 multiline_dict[i] = l
+    #     return multiline_dict
 
     # def format_single_column(self, record, column):
 
