@@ -21,6 +21,9 @@ STYLES = {
     }
 }
 
+silly = ('test: _| {asctime:u} _| {name} {levelname}'
+         ' _| {name}.{funcName:b} __>> {message:b,>118} ENDMSG __|')
+
 STYLE_DEFAULTS = {
     'smart_names': True,
     'justify': {
@@ -30,29 +33,32 @@ STYLE_DEFAULTS = {
         },
     'time_format': '%H:%M:%S',
     'padding': {
-        'default': 0.2,
-        'message': 0.8,
+        'default': 0.12,
+        'message': 0.9,
         # 'name': 0.15,
         # 'funcName': 0.15,
     },
     'truncate': ['name', 'message'],
     'truncation_chars': '...',
-    'log_format': 'test: _| {asctime:u} _| {name} {levelname}'
-                  ' _| {name}.{funcName} __>> {message:b,>118} END',
+    'log_format': '{asctime:u} _| {levelname}'
+                  ' _| {name}.{funcName:b} __>> {message:b,>118}',
     'column_escape': '_',
     'format_style': '{',
     'fit_to_terminal': False,
-    'n_columns': 100,
+    'n_columns': 120,
+    'clean_output': True,
 }
 
 
 class Column:
 
-    def __init__(self, fmt, justify=str.rjust, time_fmt='%H:%M:%S'):
+    def __init__(self, fmt, justify=str.rjust,
+                 time_fmt='%H:%M:%S', truncation_chars='...'):
         # self.fmt = fmt
         fmt = fmt.lstrip().rstrip()
         self.time_fmt = time_fmt
         self.fmt = fmt
+        self.truncation_chars = truncation_chars
         self.fmt_basic = re.sub(r'(?<=\w):\S+(?=[\}:])', '', fmt)
         self.fields = re.findall(r'(?<=\{)[a-zA-Z]+(?=[\}:])', fmt)
         self.justify = justify
@@ -64,6 +70,27 @@ class Column:
         # won't be formatted with a log record component
         self.reserved_padding = 0
         self.count_reserved_padding()
+
+    def return_simplified_fmt(self, fmt):
+        return re.sub(r'(?<=\w):\S+(?=[\}:])', '', fmt)
+
+    def return_field_from_format(self, fmt):
+        s = self.return_simplified_fmt(fmt)
+        return s[1:-1]
+
+    # @property
+    # def truncation_chars(self):
+    #     return self.conf['truncation_chars']
+
+    @property
+    def fixed_length(self):
+        if not self.adaptive_fields:
+            return True
+        return False
+
+    @property
+    def truncation_chars_length(self):
+        return len(self.truncation_chars)
 
     def count_reserved_padding(self):
         """
@@ -102,33 +129,109 @@ class Column:
     def __str__(self):
         return 'Column("{}")'.format(self.fmt)
 
+    def justify_and_pad_input(self, record_dict):
+        """Func to take output needing padding and justification
+        and perform it."""
+        fmt = self.fmt
+        # Turn all contents into TMStrings so they can pick
+        # up the fmt_spec
+        # for field, s in record_dict.items():
+        #     record_dict[field] = utils.TMString(s)
+
+        # Need the basic formatted content to know how much to
+        # pad the format
+        basic_content = self.fmt_basic.format(**record_dict)
+        extra_room = self.reserved_padding - len(basic_content) + len(fmt)
+        # print('extra_room', extra_room)
+
+        fmt = self.justify(fmt, extra_room)
+        # print(self.justify)
+        # print(f'just format: "{fmt}"')
+
+        # print(fmt, record_dict)
+        return fmt.format(**record_dict)
+
     def truncate_input(self, record_dict):
-        """Truncate the elements in place as needed.
-        Need to account for non-formatted space too!"""
-        fmt = self.fmt_basic
-        # print(fmt)
-        new_fmt = ''
-        while fmt and len(new_fmt) <= self.reserved_padding:
-            c = fmt[-1]
+        """Truncate the elements in place as needed."""
+
+        fmt_to_parse = self.fmt
+
+        new_fmt = ''  # contains the new format
+
+        # Contains the output content as it is pushed back
+        running_total_content = ''
+
+        fitted_component_dict = {}
+
+        # The allowed padding is the reserved padding minus the
+        # length of the truncation chars
+        allowed_padding = self.reserved_padding - self.truncation_chars_length
+
+        while fmt_to_parse and len(new_fmt) <= allowed_padding:
+
+            # Final char in fmt string
+            c = fmt_to_parse[-1]
             # print(c)
-            # If not a format component
+
+            # If not a format component, trim the character from the
+            # old format and push it to the new one, then continue.
             if c != '}':
-                new_fmt = new_fmt + c
-                fmt = fmt[:-1]
-            else:
-                index = fmt.rfind('{')
-                print(index)
-                print(fmt[index:])
-                print(fmt)
-                record_component = fmt[index:][1:-1]
-                print('record component:', record_component)
-                s = record_dict[record_component]
-                fmt = fmt[:index]
-                if len(s) > (self.reserved_padding - len(new_fmt)):
-                    print('cannot fit all this component in')
+                new_fmt = c + new_fmt
+                running_total_content = c + running_total_content
+                fmt_to_parse = fmt_to_parse[:-1]
+                continue
 
-            # At this point get the new format and the altered record components.
+            # Otherwise we have found a {format}
+            # Remove the format from the to_parse fmt
+            # and push it into the new_fmt
+            ptn = r'.*(?P<last_format>{\S+})$'
+            last_format = re.match(ptn, fmt_to_parse).group('last_format')
+            new_fmt = last_format + new_fmt
+            fmt_to_parse = re.sub(last_format, '', fmt_to_parse)
 
+            # Now figure out the field and get the corresponding contents
+            this_field = self.return_field_from_format(last_format)
+            # print('##', this_field, self.return_simplified_fmt(last_format))
+            this_content = record_dict[this_field]
+            # print(this_content)
+
+            # If the whole thing fits, add the contents in full.
+            # Add an entry in the new component dict, then continue
+            if (len(this_content) + len(running_total_content)
+            ) < allowed_padding:
+                # print('all fits')
+                running_total_content = this_content + running_total_content
+                fitted_component_dict[this_field] = this_content
+                continue
+
+            # If it does not, curtail the content, push the trunc chars
+            # to the content, and break the while loop
+            space = allowed_padding - len(running_total_content)
+            # print('space', space)
+
+            # take the last n=space chars from the end of the contents
+            partial_content = this_content[-space:]
+            # push back trunc chars
+            partial_content = self.truncation_chars + partial_content
+            # print(partial_content)
+            fitted_component_dict[this_field] = partial_content
+            break
+
+        # Turn all contents into TMStrings so they can pick
+        # up the fmt_spec
+        final_dict = {}
+        for field, s in fitted_component_dict.items():
+            final_dict[field] = utils.TMString(s)
+
+        # print(f'new format: {new_fmt}')
+        # print('new contents:', final_dict)
+
+        return new_fmt.format(**final_dict)
+
+        # return {
+        #     'new_format': new_fmt,
+        #     'new_record_dict': final_dict,
+        # }
 
 class Separator:
     def __init__(self, content, column_escape):
@@ -254,6 +357,15 @@ class Style:
                 for x in y
             ]
         return self._fields
+
+    @property
+    def clean_output(self):
+        """
+        If true, removes the following:
+        - "root." from logger names
+        - "__module__" from logger names
+        """
+        return self.conf['clean_output']
 
     @property
     def single_line_output(self):
@@ -411,7 +523,8 @@ class Style:
         print(self.time_format)
         column_dict = {k: Column(
             part, justify=self.default_justify,
-            time_fmt=self.time_format
+            time_fmt=self.time_format,
+            truncation_chars=self.conf['truncation_chars']
             ) for k, part in zip(string.ascii_uppercase, parts)
         }
 
