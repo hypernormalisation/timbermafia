@@ -6,6 +6,7 @@ import string
 import sys
 import textwrap
 from timbermafia.utils import *
+import timbermafia.utils as utils
 
 
 class TimbermafiaFormatter(logging.Formatter):
@@ -79,74 +80,80 @@ class TimbermafiaFormatter(logging.Formatter):
     def format_single_line(self, record):
         column_dict = self.conf['columns']
 
-        sd = {}
-        record_dict = {}
-
-        truncate_dict = {}
-
+        formatted_string_dict = {}
 
         for key, c in column_dict.items():
 
             # Get the message components we care about first.
-            column_record_dict = {
-                k: v for k, v in record.__dict__.items()
+            record_dict = {
+                k: utils.TMString(v) for k, v in record.__dict__.items()
                 if k in c.fields
             }
+            # print(record_dict)
+            # return ''
 
             # Use the basic format to see if we need truncation.
-            s = c.fmt_basic.format(**column_record_dict)
-            print(c.fmt_basic, c.reserved_padding)
-            print(s, len(s))
+            s = c.fmt_basic.format(**record_dict)
+            # print(c.fmt_basic, c.reserved_padding)
+            # print(s, len(s))
 
+            # For fixed length columns, simply format
+            # print(c.fmt, c.fixed_length)
+            # if c.fixed_length:
+            # if False:
+            #     s = c.fmt.format(**record_dict)
+            #     # print(s)
+            #     formatted_string_dict[key] = s
+
+            # If we need truncation
             if len(s) > c.reserved_padding:
-                print(f'{c} needs truncating')
-                c.truncate_input(column_record_dict)
+                # print(f'{c} needs truncating')
+                s = c.truncate_input(record_dict)
+                # new_fmt = d['new_format']
+                # new_record_dict = d['new_record_dict']
+                #
+                # s_full = new_fmt.format(**new_record_dict)
+                # print(s)
+                formatted_string_dict[key] = s
 
-                # truncate_dict[key] = {
-                #     'c': c,
-                #     's': s,
-                # }
-        return ''
+            # Else we need justification and padding
+            else:
+                s = c.justify_and_pad_input(record_dict)
+                formatted_string_dict[key] = s
 
-        # print(truncate_dict)
-            # Then before padding, we truncate and justify
-
-
-            # print(record_dict)
-            # print(c.__dict__)
-            # s = c.fmt.format(**record.__dict__)
-            # just = c.justify
-            # # print(key, s, len(s), c.reserved_padding)
-            # sd[key] = just(s, c.reserved_padding)
-        # print(sd)
+        # print(formatted_string_dict)
 
         separator_dict = self.conf['separators']
-        print(separator_dict)
+        # print(separator_dict)
         sd2 = {key: s.content_escaped for key, s in separator_dict.items()}
         # print(sd2)
-        sd2.update(sd)
+        sd2.update(formatted_string_dict)
         template = self.conf['template']
-        # template = '{A} {a} {B} {b} {C} {c} {D}'
-        print(template)
+        # print(template)
         return template.format(**sd2)
 
-    def convert_log_record_properties(self, record):
-        """Convert the log record's component strings to TMStrings."""
-        record.message = TMString(record.getMessage())
-        if self.usesTime():
-            record.asctime = TMString(self.formatTime(record, self.datefmt))
-        new_d = {}
-        for key, value in record.__dict__.items():
-            if key in self.style.fields and isinstance(value, str):
-                # print(f'converting {key}: {value}')
-                new_d[key] = TMString(value)
-        record.__dict__.update(new_d)
+    # def convert_log_record_properties(self, record):
+    #     """Convert the log record's component strings to TMStrings."""
+    #     record.message = TMString(record.getMessage())
+    #     if self.usesTime():
+    #         record.asctime = TMString(self.formatTime(record, self.datefmt))
+    #     new_d = {}
+    #     for key, value in record.__dict__.items():
+    #         if key in self.style.fields and isinstance(value, str):
+    #             # print(f'converting {key}: {value}')
+    #             new_d[key] = TMString(value)
+    #     record.__dict__.update(new_d)
 
     def format(self, record):
 
         # If there is no timbermafia style, defer to Formatter.format
         if not self.style:
             return super().format(record)
+
+        # If requested, clean output.
+        if self.style.clean_output:
+            record.name = record.name.replace('__module__', '')
+            record.name = record.name.replace('root.', '')
 
         # Convert the message string to an TMString with enhanced fmt_spec
         record.message = record.getMessage()
