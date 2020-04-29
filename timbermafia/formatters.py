@@ -20,64 +20,13 @@ class TimbermafiaFormatter(logging.Formatter):
 
         if self.style:
             self.conf = self.style.generate_column_settings()
-        self.n_columns = self.style.conf.get(
-            'n_columns', shutil.get_terminal_size().columns
-        )
-        # print(self.n_columns)
+            self.n_columns = self.style.conf.get(
+                'n_columns', shutil.get_terminal_size().columns
+            )
 
-    # def _format(self, record):
-    #     return self._fmt.format(**record.__dict__)
-
-    # ct = self.converter(record.created)
-
-    def get_formatted_columns(self, record):
-        cd = self.conf['columns']
-        string_d = {}
-        for i, d in cd.items():
-            # print(d['contents'])
-            s = d['contents'].format(**record.__dict__)
-            string_d[i] = s
-        # print(string_d)
-        return string_d
-
-    # def process_output(self, d):
-    #     for i in d:
-    #         conf = self.conf['columns'][i]
-    #         s = d[i]
-    #         print(s)
-    #         print(conf)
-    #
-    #         # Only process ANSI chars if we go over the line length.
-    #         ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-    #         print(len(ansi_escape.sub('', s)), conf['used_padding'])
-    #
-    #         l = ansiwrap.wrap(s, conf['used_padding'], break_long_words=True)
-    #         ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-    #
-    #         # print(re.sub(ansi_escape, '', s))
-    #         # print(l)
-    #         # for i in l:
-    #         #     print(i.encode('unicode_escape'))
-
-    # def get_multiline_outputs(self, record):
-    #     multiline_dict = {}
-    #     for i, v in self.conf['columns'].items():
-    #         if v['can_be_multiline']:
-    #             s = v['contents_basic'].format(**record.__dict__)
-    #             # print(s)
-    #             if len(s) > v['used_padding']:
-    #                 l = textwrap.wrap(s, v['used_padding'],
-    #                                   break_long_words=True)
-    #                 just = v['justify']
-    #                 l = [just(TMString(x), v['used_padding']) for x in l]
-    #                 for i in l:
-    #                     # print(i)
-    #                 multiline_dict[i] = l
-    #     return multiline_dict
-
-    # def format_single_column(self, record, column):
-
-    def format_single_line(self, record):
+    def format_column_contents(self, record):
+        """Creates a map of the column's template key to a list
+        of lines to be output"""
         column_dict = self.conf['columns']
 
         formatted_string_dict = {}
@@ -85,44 +34,81 @@ class TimbermafiaFormatter(logging.Formatter):
         for key, c in column_dict.items():
 
             # Get the message components we care about first.
+            # Also cast them to TMStrings
             record_dict = {
                 k: utils.TMString(v) for k, v in record.__dict__.items()
                 if k in c.fields
             }
-            # print(record_dict)
-            # return ''
 
             # Use the basic format to see if we need truncation.
             s = c.fmt_basic.format(**record_dict)
             # print(c.fmt_basic, c.reserved_padding)
             # print(s, len(s))
 
-            # For fixed length columns, simply format
-            # print(c.fmt, c.fixed_length)
-            # if c.fixed_length:
-            # if False:
-            #     s = c.fmt.format(**record_dict)
-            #     # print(s)
-            #     formatted_string_dict[key] = s
+            # For fixed length columns, or incidental
+            # cases where the string "just fits", a simple
+            # format to the full format works.
+            if len(s) == c.reserved_padding:
+                s = c.fmt.format(**record_dict)
+                # print(s)
+                formatted_string_dict[key] = [s]
 
-            # If we need truncation
-            if len(s) > c.reserved_padding:
+            # If the string is longer we need to either truncate the output
+            # if that setting is enabled, or delegate the to multiline func.
+            elif len(s) > c.reserved_padding:
                 # print(f'{c} needs truncating')
-                s = c.truncate_input(record_dict)
+                if c.truncate_enabled:
+                    s = c.truncate_input(record_dict)
+                    formatted_string_dict[key] = [s]
+                else:
+                    lines = c.format_multiline(record_dict)
+                    s = 'SOMETHING WILL GO HERE'
                 # new_fmt = d['new_format']
                 # new_record_dict = d['new_record_dict']
                 #
                 # s_full = new_fmt.format(**new_record_dict)
                 # print(s)
-                formatted_string_dict[key] = s
+                    formatted_string_dict[key] = lines
 
-            # Else we need justification and padding
+            # Else the string is shorter than the padding, and
+            # we need justification and padding
             else:
                 s = c.justify_and_pad_input(record_dict)
-                formatted_string_dict[key] = s
+                formatted_string_dict[key] = [s]
 
-        # print(formatted_string_dict)
+        # If there is multiline, pad any unused space for columns
+        # with contents running less than the n_lines
+        print(formatted_string_dict)
 
+        max_lines = max([len(l) for l in formatted_string_dict.values()])
+        print(max_lines)
+
+        for key, lines in formatted_string_dict.items():
+
+            while len(lines) < max_lines:
+                lines.append(column_dict[key].empty_padding_string)
+            print(key, lines)
+            formatted_string_dict[key] = lines
+
+        return formatted_string_dict
+
+    def form_output_string(self, column_string_dict):
+
+        full_lines = []
+
+        n_lines = 0
+        for lines in column_string_dict.values():
+            n_lines = len(lines)
+            break
+        print('n_lines says', n_lines)
+
+        for line_number in range(n_lines):
+            cd = {key: lines[line_number] for
+                  key, lines in column_string_dict.items()}
+            print(cd)
+            return
+
+        # Take care of separators.
         separator_dict = self.conf['separators']
         # print(separator_dict)
         sd2 = {key: s.content_escaped for key, s in separator_dict.items()}
@@ -175,8 +161,10 @@ class TimbermafiaFormatter(logging.Formatter):
         s = ''
 
         # If the style is guaranteed a single line,
-        if self.style.single_line_output:
-            s = self.format_single_line(record)
+        # if self.style.single_line_output:
+        d = self.format_column_contents(record)
+        self.form_output_string(d)
+
             # s = self.formatMessage(record)
         # if record.exc_info:
         #     if not record.exc_text:

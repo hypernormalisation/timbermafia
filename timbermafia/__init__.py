@@ -4,6 +4,7 @@ import re
 import shutil
 import string
 import sys
+import textwrap
 import time
 import timbermafia.formats
 from timbermafia.rainbow import RainbowStreamHandler, RainbowFileHandler, palette_dict
@@ -21,8 +22,8 @@ STYLES = {
     }
 }
 
-silly = ('test: _| {asctime:u} _| {name} {levelname}'
-         ' _| {name}.{funcName:b} __>> {message:b,>118} {thread} ENDMSG __|')
+silly = ('test: _| {asctime:} _| {name} {levelname}'
+         ' _| {name}.{funcName:} __>> {message:b,>118} {thread} ENDMSG __|')
 
 STYLE_DEFAULTS = {
     'smart_names': True,
@@ -33,28 +34,30 @@ STYLE_DEFAULTS = {
         },
     'time_format': '%H:%M:%S',
     'padding': {
-        'default': 0.2,
-        'message': 0.9,
-        'threadName': 1.5,
+        'default': 0.1,
+        'message': 1.0,
+        # 'threadName': 1.5,
         # 'name': 0.15,
         # 'funcName': 0.15,
     },
-    'truncate': ['name', 'message'],
-    'truncation_chars': '...',
-    'log_format': '{asctime} _ {levelname} '
-                  '_ {name}.{funcName:u} __>> {message:>15}',
+    'truncate': ['name'],
+    'truncation_chars': '\u2026',
+    'log_format': '{asctime} _ {levelname:9} '
+                  '_ {name:b}.{funcName:u} __>> MSG: {message:b,>15}, THREAD = {threadName}',
     'column_escape': '_',
     'format_style': '{',
     'fit_to_terminal': False,
     'n_columns': 120,
-    'clean_output': False,
+    'clean_output': True,
 }
 
 
 class Column:
 
     def __init__(self, fmt, justify=str.rjust,
-                 time_fmt='%H:%M:%S', truncation_chars='...'):
+                 time_fmt='%H:%M:%S',
+                 truncate_enabled=False,
+                 truncation_chars='...'):
         # self.fmt = fmt
         fmt = fmt.lstrip().rstrip()
         self.time_fmt = time_fmt
@@ -64,13 +67,18 @@ class Column:
         self.fields = re.findall(r'(?<=\{)[a-zA-Z]+(?=[\}:])', fmt)
         self.justify = justify
         self.multiline = False
+        self.truncate_enabled = truncate_enabled
         self.adaptive_fields = [x for x in self.fields
                                 if x not in FIXED_LENGTH_FIELDS]
 
         # Count any space used by the template string that
         # won't be formatted with a log record component
         self.reserved_padding = 0
-        self.count_reserved_padding()
+        self.count_static_padding_amount()
+
+        # Placeholder for the textwrap.TextWrapper instance
+        # that will be used in case of multiline breaks.
+        self._wrapper = None
 
     def return_simplified_fmt(self, fmt):
         return re.sub(r'(?<=\w):\S+(?=[\}:])', '', fmt)
@@ -79,9 +87,11 @@ class Column:
         s = self.return_simplified_fmt(fmt)
         return s[1:-1]
 
-    # @property
-    # def truncation_chars(self):
-    #     return self.conf['truncation_chars']
+    @property
+    def wrapper(self):
+        if not self._wrapper:
+            self._wrapper = textwrap.TextWrapper(width=self.reserved_padding)
+        return self._wrapper
 
     @property
     def fixed_length(self):
@@ -93,7 +103,7 @@ class Column:
     def truncation_chars_length(self):
         return len(self.truncation_chars)
 
-    def count_reserved_padding(self):
+    def count_static_padding_amount(self):
         """
         Count the padding as much as is possible without
         considering adaptive fields. If no adaptive fields are present
@@ -127,8 +137,112 @@ class Column:
         with the current time format"""
         return len(time.strftime(self.time_fmt))
 
+    @property
+    def empty_padding_string(self):
+        return ' ' * self.reserved_padding
+
     def __str__(self):
         return 'Column("{}")'.format(self.fmt)
+
+    def format_multiline(self, record_dict):
+
+        # Figure out how many lines we will need by calling the
+        # basic_fmt.format with a textwrap.
+        basic_string = self.fmt_basic.format(**record_dict)
+        # print(basic_string)
+        basic_lines = self.wrapper.wrap(basic_string)
+        n_lines = len(basic_lines)
+
+        # for i, line in enumerate(basic_lines):
+        #     print(i, line)
+
+        # Now we know the basic content.
+        # Might need to do this the other way, where we process the fmt.
+
+        # Containers for the per-line stuff
+        fmt_lines = []
+        content_lines = []
+
+        fmt_to_parse = self.fmt
+
+        line_content = ''
+        line_fmt = ''
+
+        formatted_lines = []
+
+        line_record_dict = {}
+
+        while fmt_to_parse:
+
+            c = fmt_to_parse[0]
+            # print(c)
+            # If it's not a format, simply add to this_fmt and remove
+            # from fmt_to_be_parsed
+            if c != '{':
+                line_fmt += c
+                line_content += c
+                fmt_to_parse = fmt_to_parse[1:]
+            
+            # Otherwise we have found a format.
+            # Match it but don't pull it out yet.
+            else:
+                ptn = r'^(?P<first_format>{\S+}).*'
+                first_format = re.match(
+                    ptn, fmt_to_parse
+                ).group('first_format')
+                # print(first_format)
+
+                line_fmt += first_format
+
+                # Get content
+                this_field = self.return_field_from_format(first_format)
+                # print('##', this_field, self.return_simplified_fmt(first_format))
+                this_content = record_dict[this_field]
+                # print(this_content)
+                # while this_content and not len(line_content):
+
+                # If the whole thing takes us over the limit, slice off what
+                # we can fit, AND DO NOT PURGE THE FORMAT FROM THE fmt_to_parse
+                if (len(line_content) +
+                    len(this_content)) > self.reserved_padding:
+                    # print('too much content for this line')
+                    space_this_line = self.reserved_padding - len(line_content)
+                    content_to_add = this_content[:space_this_line]
+                    # Remove this from the total record dict and add it to the
+                    # total content for this line.
+                    line_content += content_to_add
+                    record_dict[this_field] = record_dict[this_field][space_this_line:]
+                    # print(content_to_add)
+                    # print('this_field says', this_field)
+                    line_record_dict[this_field] = utils.TMString(content_to_add)
+
+                # Else we can add the thing wholesale
+                # Also remove the format space from the fmt_to_parse
+                else:
+                    # print('can fit all content in this line')
+                    line_content += this_content
+                    line_record_dict[this_field] = utils.TMString(this_content)
+                    fmt_to_parse = re.sub(first_format, '', fmt_to_parse)
+
+            # If we've hit the limit, push these lines and
+            # empty the containers
+            if len(line_content) == self.reserved_padding or not fmt_to_parse:
+                # print('WE HAVE FILLED UP A LINE')
+                # print(line_content)
+                # print(line_fmt)
+                # print(line_record_dict)
+                s = line_fmt.format(**line_record_dict)
+                formatted_lines.append(s)
+                # print(s)
+                # break
+
+                # fmt_lines.append(line_fmt)
+                # content_lines.append(line_content)
+                line_content = ''
+                line_fmt = ''
+                line_record_dict = {}
+        # print(formatted_lines)
+        return formatted_lines
 
     def justify_and_pad_input(self, record_dict):
         """Func to take output needing padding and justification
@@ -226,10 +340,6 @@ class Column:
 
         return new_fmt.format(**final_dict)
 
-        # return {
-        #     'new_format': new_fmt,
-        #     'new_record_dict': final_dict,
-        # }
 
 class Separator:
     def __init__(self, content, column_escape):
