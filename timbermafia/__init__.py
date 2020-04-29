@@ -34,20 +34,20 @@ STYLE_DEFAULTS = {
         },
     'time_format': '%H:%M:%S',
     'padding': {
-        'default': 0.1,
+        'default': 0.14,
         'message': 1.0,
         # 'threadName': 1.5,
         # 'name': 0.15,
         # 'funcName': 0.15,
     },
-    'truncate': ['name'],
+    'truncate': ['name', 'funcName'],
     'truncation_chars': '\u2026',
-    'log_format': '{asctime} _ {levelname:9} '
-                  '_ {name:b}.{funcName:u} __>> MSG: {message:b,>15}, THREAD = {threadName}',
+    'log_format': '{asctime} _ {levelname} _ {name}.{funcName} __>'
+                  ' {message:>15} THREAD: {threadName}',
     'column_escape': '_',
     'format_style': '{',
     'fit_to_terminal': False,
-    'n_columns': 120,
+    'n_columns': 125,
     'clean_output': True,
 }
 
@@ -63,7 +63,7 @@ class Column:
         self.time_fmt = time_fmt
         self.fmt = fmt
         self.truncation_chars = truncation_chars
-        self.fmt_basic = re.sub(r'(?<=\w):\S+(?=[\}:])', '', fmt)
+        self.fmt_basic = re.sub(r'(?<=\w):\S+?(?=[\}:])', '', fmt)
         self.fields = re.findall(r'(?<=\{)[a-zA-Z]+(?=[\}:])', fmt)
         self.justify = justify
         self.multiline = False
@@ -90,7 +90,10 @@ class Column:
     @property
     def wrapper(self):
         if not self._wrapper:
-            self._wrapper = textwrap.TextWrapper(width=self.reserved_padding)
+            self._wrapper = textwrap.TextWrapper(
+                width=self.reserved_padding,
+                break_long_words=False,
+            )
         return self._wrapper
 
     @property
@@ -146,6 +149,7 @@ class Column:
 
     def format_multiline(self, record_dict):
 
+        # print(self.reserved_padding)
         # Figure out how many lines we will need by calling the
         # basic_fmt.format with a textwrap.
         basic_string = self.fmt_basic.format(**record_dict)
@@ -186,11 +190,11 @@ class Column:
             # Otherwise we have found a format.
             # Match it but don't pull it out yet.
             else:
-                ptn = r'^(?P<first_format>{\S+}).*'
+                ptn = r'^(?P<first_format>{\S+?}).*'
                 first_format = re.match(
                     ptn, fmt_to_parse
                 ).group('first_format')
-                # print(first_format)
+                # print('first_format:', first_format)
 
                 line_fmt += first_format
 
@@ -226,11 +230,12 @@ class Column:
 
             # If we've hit the limit, push these lines and
             # empty the containers
-            if len(line_content) == self.reserved_padding or not fmt_to_parse:
+            if len(line_content) == self.reserved_padding: # or not fmt_to_parse:
                 # print('WE HAVE FILLED UP A LINE')
                 # print(line_content)
                 # print(line_fmt)
                 # print(line_record_dict)
+
                 s = line_fmt.format(**line_record_dict)
                 formatted_lines.append(s)
                 # print(s)
@@ -241,6 +246,18 @@ class Column:
                 line_content = ''
                 line_fmt = ''
                 line_record_dict = {}
+
+            # If we've run out of fmt to parse, we need to then add
+            # the whitespace for the format.
+            elif not fmt_to_parse:
+                # print('=== Finished and hit the last line, need to pad.')
+                extra_room = self.reserved_padding - len(line_content) + len(line_fmt)
+                # print(extra_room, line_content)
+                line_fmt = self.justify(line_fmt, extra_room)
+                s = line_fmt.format(**line_record_dict)
+                formatted_lines.append(s)
+
+
         # print(formatted_lines)
         return formatted_lines
 
@@ -248,10 +265,6 @@ class Column:
         """Func to take output needing padding and justification
         and perform it."""
         fmt = self.fmt
-        # Turn all contents into TMStrings so they can pick
-        # up the fmt_spec
-        # for field, s in record_dict.items():
-        #     record_dict[field] = utils.TMString(s)
 
         # Need the basic formatted content to know how much to
         # pad the format
@@ -349,6 +362,18 @@ class Separator:
         self.length = len(self.content_escaped)
         self.multiline = '__' in self.content
         # print(self.__dict__)
+
+    def return_separator_string(self, line_index):
+        """Return a string for the separator
+        based on an input line number index (starting from zero).
+        multiline always return the normal, otherwise
+        for line_numbers above 0 we give empty space
+        the length of the separator.
+        """
+        if self.multiline or line_index == 0:
+            return self.content_escaped
+        return ' ' * self.length
+
 
 class Style:
     """
@@ -692,7 +717,7 @@ def configure_default_formatter(style):
 
 
 def basic_config(
-        style=None, fmt=None, stream=sys.stdout, filename=None, palette='sensible',
+        style=None, format=None, stream=sys.stdout, filename=None, palette='sensible',
         clear=False, basic_files=True, handlers=None, level=logging.DEBUG,
         ):
     """Function for basic configuration of timbermafia logging.
@@ -715,7 +740,7 @@ def basic_config(
         # Only create formatters and styles as required.
         use_custom_formatter = stream or (filename and not basic_files)
         custom_formatter, default_formatter = None, None
-        my_style = Style(style=style, fmt=fmt)
+        my_style = Style(style=style, fmt=format)
 
         if use_custom_formatter:
             custom_formatter = configure_custom_formatter(my_style)
