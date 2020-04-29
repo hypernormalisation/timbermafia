@@ -53,6 +53,8 @@ class TimbermafiaFormatter(logging.Formatter):
 
             # print(s, c.reserved_padding)
             # print(c.__dict__)
+            # print(c.truncate_enabled)
+
             if len(s) == c.reserved_padding:
                 s = c.fmt.format(**record_dict)
                 # print(s)
@@ -60,6 +62,7 @@ class TimbermafiaFormatter(logging.Formatter):
 
             # If the string is longer we need to either truncate the output
             # if that setting is enabled, or delegate the to multiline func.
+
             elif len(s) > c.reserved_padding:
                 # print(c.__dict__)
 

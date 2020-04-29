@@ -34,7 +34,7 @@ STYLE_DEFAULTS = {
         },
     'time_format': '%H:%M:%S',
     'padding': {
-        'default': 0.14,
+        'default': 0.1,
         'message': 1.0,
         # 'threadName': 1.5,
         # 'name': 0.15,
@@ -43,11 +43,11 @@ STYLE_DEFAULTS = {
     'truncate': ['name', 'funcName'],
     'truncation_chars': '\u2026',
     'log_format': '{asctime} _ {levelname} _ {name}.{funcName} __>'
-                  ' {message:>15} THREAD: {threadName}',
+                  ' {message:>15}',
     'column_escape': '_',
     'format_style': '{',
     'fit_to_terminal': False,
-    'n_columns': 125,
+    'n_columns': 100,
     'clean_output': True,
 }
 
@@ -56,7 +56,7 @@ class Column:
 
     def __init__(self, fmt, justify=str.rjust,
                  time_fmt='%H:%M:%S',
-                 truncate_enabled=False,
+                 truncation_fields=[],
                  truncation_chars='...'):
         # self.fmt = fmt
         fmt = fmt.lstrip().rstrip()
@@ -65,9 +65,15 @@ class Column:
         self.truncation_chars = truncation_chars
         self.fmt_basic = re.sub(r'(?<=\w):\S+?(?=[\}:])', '', fmt)
         self.fields = re.findall(r'(?<=\{)[a-zA-Z]+(?=[\}:])', fmt)
+
+        self.truncate_enabled = False
+        for f in self.fields:
+            if f in truncation_fields:
+                self.truncate_enabled = True
+
         self.justify = justify
         self.multiline = False
-        self.truncate_enabled = truncate_enabled
+
         self.adaptive_fields = [x for x in self.fields
                                 if x not in FIXED_LENGTH_FIELDS]
 
@@ -406,6 +412,7 @@ class Style:
         self.log_format = kwargs.get('log_format', conf['log_format'])
         self.time_format = kwargs.get('time_format', conf['time_format'])
         # print(self.log_format)
+
         # Bundle other settings in a dict.
         self.conf = conf
 
@@ -657,6 +664,7 @@ class Style:
         column_dict = {k: Column(
             part, justify=self.default_justify,
             time_fmt=self.time_format,
+            truncation_fields=self.conf['truncate'],
             truncation_chars=self.conf['truncation_chars']
             ) for k, part in zip(string.ascii_uppercase, parts)
         }
