@@ -7,10 +7,7 @@ import sys
 import textwrap
 import time
 import timbermafia.formats
-from timbermafia.rainbow import (
-    RainbowStreamHandler,
-    RainbowFileHandler, PALETTE_DICT
-)
+from timbermafia.rainbow import PALETTE_DICT
 from timbermafia.formatters import TimbermafiaFormatter
 import timbermafia.utils as utils
 
@@ -34,15 +31,16 @@ STYLE_DEFAULTS = {
     'time_format': '%H:%M:%S',
     'padding': {
         'default': 0.2,
-        'message': 1.0,
+        'message': 1.4,
     },
     'truncate': ['name', 'funcName'],
     'truncation_chars': '\u2026',
-    'format': '{asctime} _ {levelname} _ {name}.{funcName} __> {message:>15} __|',
+    'format': '{asctime:u} _ {name}.{funcName} __>> {message:>15} ',
     'column_escape': '_',
     'format_style': '{',
     'fit_to_terminal': True,
     'n_columns': 120,
+    'max_width': 160,
     'clean_output': True,
     'monochrome': False,
 }
@@ -402,6 +400,9 @@ class Style:
         # Bundle other settings in a dict.
         self.conf = conf
 
+        # Placeholder for generated settings
+        self.generated_settings = None
+
     @property
     def format_style(self):
         return self._fmt_style
@@ -466,9 +467,17 @@ class Style:
         return False
 
     @property
+    def max_width(self):
+        return self.conf.get('max_width', False)
+
+    @property
     def n_columns(self):
         if self.fit_to_terminal:
-            return shutil.get_terminal_size().columns
+            n = shutil.get_terminal_size().columns
+            if self.max_width:
+                if n > self.max_width:
+                    return self.max_width
+            return n
         else:
             return self.conf.get('n_columns')
 
@@ -503,51 +512,44 @@ class Style:
         if not self._column_dict:
             self.generate_column_settings()
         if self._single_line_output is None:
-            # print([c.multiline for c in self._column_dict.values()])
             b = all([c.multiline is False for c in self._column_dict.values()])
-            # print('bool says:', b)
             self._single_line_output = b
         return self._single_line_output
 
     def calculate_padding(self, column_dict, separator_dict, template):
-        """Function to evaluate column padding widths"""
-
+        """
+        Function to evaluate column padding widths.
+        """
         # Get the total reserved space from each column,
         # which does not account for any adaptive
         # length record components.
-        # print(self.no_ansi_log_format)
-        print(self.n_columns)
         total_used_space = sum([c.reserved_padding for c
                                 in column_dict.values()])
 
         # Add spaces from the template
-        # ws = [i for i in template if i.is]
-        # print(template)
         non_special_chars = ''.join(
             [s for s in re.findall(r'(.*?)\{.*?\}', template) if s]
         )
-        # print(non_special_chars)
         nsp_len = len(non_special_chars)
         total_used_space += len(non_special_chars)
-        # print('non_special_chars_len', len(non_special_chars))
+
         # Add space used on separators
         separator_padding = 0
         for s in separator_dict.values():
             separator_padding += s.length
         total_used_space += separator_padding
-        # print(total_used_space)
 
         adaptive_fields = [
             x for y in list(c.adaptive_fields for c
                             in column_dict.values())
             for x in y
         ]
-        # print(adaptive_fields)
 
         # Normalise adaptive fields to space left
         space_for_adaptive = self.n_columns - total_used_space
-        # print('space remaining', space_for_adaptive)
-
+        if space_for_adaptive < 5:
+            raise ValueError('Column width insufficient for this configuration.'
+                             ' Specify a higher column width.')
         adaptive_fields_dict = {}
         weights = self.conf['padding']
 
@@ -555,15 +557,11 @@ class Style:
             weight = weights.get(f, weights['default'])
             adaptive_fields_dict[i] = {'field': f, 'weight': weight}
 
-        # print(adaptive_fields_dict)
-
         total_weights = sum(v['weight'] for v in adaptive_fields_dict.values())
-        # print(total_weights)
         for d in adaptive_fields_dict.values():
             d['char_length'] = math.floor(
                 (d['weight'] / total_weights) * space_for_adaptive
             )
-        # print(adaptive_fields_dict)
 
         ad2 = {}
         for d in adaptive_fields_dict.values():
@@ -592,26 +590,15 @@ class Style:
                     if deficit == 0:
                         break
 
-    # def evaluate_multiline_possibility(self, column_dict):
-    #     """Figure out it is possible that a column requires
-    #     multiple lines of output"""
-    #     for c in column_dict.values():
-    #         truncate = False
-    #         if c.adaptive_fields:
-    #             for field in c.adaptive_fields:
-    #                 if field in self.conf['truncate']:
-    #                     truncate = True
-    #         if c.adaptive_fields and not truncate:
-    #             c.multiline = True
-
     def set_column_justifications(self, column_dict):
-        """If required changes the Column.justify values
-        to non-defaults."""
+        """
+        If required changes the Column.justify values
+        to non-defaults.
+        """
         just_conf = self.conf['justify']
         to_ljust = just_conf.get('left', [])
         to_rjust = just_conf.get('right', [])
         to_cjust = just_conf.get('center', [])
-
         just_d = {
             str.ljust: to_ljust,
             str.rjust: to_rjust,
@@ -621,8 +608,6 @@ class Style:
         for c in column_dict.values():
             justification_settings = []
             for func, fields_to_just in just_d.items():
-
-                # print(bool(justification_settings))
                 for f in c.fields:
                     if f in fields_to_just:
                         if not justification_settings:
@@ -641,7 +626,6 @@ class Style:
         and separator specification, and return the information
         in a dict.
         """
-
         # Reset recorded settings from any possible previous configs.
         self._single_line_output = None
         self._fields = None
@@ -681,21 +665,19 @@ class Style:
         for key, s in separator_dict.items():
             template = template.replace(s.content, '{'+key+'}', 1)
 
-        # print(column_dict)
-        # print(separator_dict)
-        # print(template)
         self.set_column_justifications(column_dict)
         self.calculate_padding(column_dict, separator_dict, template)
-        # self.evaluate_multiline_possibility(column_dict)
 
         # Internally assign these attributes.
         self._column_dict = column_dict
 
-        return {
+        d = {
             'columns': column_dict,
             'separators': separator_dict,
             'template': template
         }
+        self.generated_settings = d
+        return d
 
 
 def configure_custom_formatter(style):
@@ -743,11 +725,15 @@ def basic_config(
         # Only create formatters and styles as required.
         use_custom_formatter = stream or (filename and not basic_files)
         custom_formatter, default_formatter = None, None
-        my_style = None
-        if format:
-            my_style = Style(preset=style, format=format, palette=palette)
-        else:
-            my_style = Style(preset=style, palette=palette)
+
+        # If the given style is a Style instance, use it.
+        # Else generate a style from the preset.
+        my_style = style
+        if not isinstance(style, Style):
+            if format:
+                my_style = Style(preset=style, format=format, palette=palette)
+            else:
+                my_style = Style(preset=style, palette=palette)
 
         if use_custom_formatter:
             custom_formatter = configure_custom_formatter(my_style)
