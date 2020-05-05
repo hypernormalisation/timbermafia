@@ -69,7 +69,7 @@ dawn = {
     URL: (147, None, True),
 }
 
-palette_dict = {
+PALETTE_DICT = {
     'sensible': sensible,
     'sensible_light': sensible_light,
     'forest': forest,
@@ -88,7 +88,7 @@ class RainbowStreamHandler(logging.StreamHandler):
     """
     def __init__(self, stream=sys.stdout, palette='sensible', allow_bold=True):
         super().__init__(stream=stream)
-        self.palette_dict = palette_dict.get(palette)
+        self.palette_dict = PALETTE_DICT.get(palette)
         self.allow_bold = allow_bold
 
     # @property
@@ -174,7 +174,7 @@ class RainbowFileHandler(logging.FileHandler):
         config = kwargs.get('config')
         colour_map_key = config['palette']
         self.config = config
-        self.level_map = palette_dict.get(colour_map_key)
+        self.level_map = PALETTE_DICT.get(colour_map_key)
 
     def colorize(self, message, record):
         levelno = None
