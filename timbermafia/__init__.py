@@ -7,7 +7,10 @@ import sys
 import textwrap
 import time
 import timbermafia.formats
-from timbermafia.rainbow import RainbowStreamHandler, RainbowFileHandler, palette_dict
+from timbermafia.rainbow import (
+    RainbowStreamHandler,
+    RainbowFileHandler, palette_dict
+)
 from timbermafia.formatters import TimbermafiaFormatter
 import timbermafia.utils as utils
 
@@ -22,9 +25,6 @@ STYLES = {
     }
 }
 
-silly = ('test: _| {asctime:} _| {name} {levelname}'
-         ' _| {name}.{funcName:} __>> {message:b,>118} {thread} ENDMSG __|')
-
 STYLE_DEFAULTS = {
     'smart_names': True,
     'justify': {
@@ -34,7 +34,7 @@ STYLE_DEFAULTS = {
         },
     'time_format': '%H:%M:%S',
     'padding': {
-        'default': 0.1,
+        'default': 0.2,
         'message': 1.0,
         # 'threadName': 1.5,
         # 'name': 0.15,
@@ -43,11 +43,11 @@ STYLE_DEFAULTS = {
     'truncate': ['name', 'funcName'],
     'truncation_chars': '\u2026',
     'log_format': '{asctime} _ {levelname} _ {name}.{funcName} __>'
-                  ' {message:>15}',
+                  ' MSG: {message:>15} __| {threadName}',
     'column_escape': '_',
     'format_style': '{',
     'fit_to_terminal': False,
-    'n_columns': 100,
+    'n_columns': 120,
     'clean_output': True,
 }
 
@@ -154,41 +154,48 @@ class Column:
         return 'Column("{}")'.format(self.fmt)
 
     def format_multiline(self, record_dict):
+        """
+        Function to take a LogRecord's dict with the relevant
+        fields, and split the message over multiple lines.
 
-        # print(self.reserved_padding)
+        Returns a list of formatted lines.
+        """
         # Figure out how many lines we will need by calling the
         # basic_fmt.format with a textwrap.
         basic_string = self.fmt_basic.format(**record_dict)
-        # print(basic_string)
         basic_lines = self.wrapper.wrap(basic_string)
-        n_lines = len(basic_lines)
+        print(basic_lines)
 
-        # for i, line in enumerate(basic_lines):
-        #     print(i, line)
+        line_length_map = {index: len(line) for index, line
+                           in enumerate(basic_lines)}
+        print(line_length_map)
+        current_line_index = 0
+        this_line_max_length = line_length_map[current_line_index]
 
-        # Now we know the basic content.
-        # Might need to do this the other way, where we process the fmt.
-
-        # Containers for the per-line stuff
-        fmt_lines = []
-        content_lines = []
-
+        # This will be processed from the beginning until gone.
         fmt_to_parse = self.fmt
 
+        # Containers to be reset each line.
         line_content = ''
         line_fmt = ''
-
         formatted_lines = []
-
         line_record_dict = {}
+        current_line_index = 0
+        this_line_max_length = line_length_map[current_line_index]
 
         while fmt_to_parse:
 
             c = fmt_to_parse[0]
-            # print(c)
+
             # If it's not a format, simply add to this_fmt and remove
             # from fmt_to_be_parsed
             if c != '{':
+
+                # Remove leading whitespace characters in new lines.
+                if c.isspace() and len(line_content) == 0:
+                    fmt_to_parse = fmt_to_parse[1:]
+                    continue
+
                 line_fmt += c
                 line_content += c
                 fmt_to_parse = fmt_to_parse[1:]
@@ -208,21 +215,30 @@ class Column:
                 this_field = self.return_field_from_format(first_format)
                 # print('##', this_field, self.return_simplified_fmt(first_format))
                 this_content = record_dict[this_field]
-                # print(this_content)
+
+                if this_content[0].isspace() and len(line_content) == 0:
+                    print('STRIPPING WHITESPACES')
+                    this_content = this_content[1:]
+                    record_dict[this_field] = record_dict[this_field][1:]
+                print(this_line_max_length)
+                print('##', this_content)
                 # while this_content and not len(line_content):
 
                 # If the whole thing takes us over the limit, slice off what
                 # we can fit, AND DO NOT PURGE THE FORMAT FROM THE fmt_to_parse
                 if (len(line_content) +
-                    len(this_content)) > self.reserved_padding:
-                    # print('too much content for this line')
-                    space_this_line = self.reserved_padding - len(line_content)
+                        len(this_content)) > this_line_max_length:
+                    print('too much content for this line')
+                    space_this_line = this_line_max_length - len(line_content)
+
                     content_to_add = this_content[:space_this_line]
+
                     # Remove this from the total record dict and add it to the
                     # total content for this line.
                     line_content += content_to_add
+
                     record_dict[this_field] = record_dict[this_field][space_this_line:]
-                    # print(content_to_add)
+                    print(content_to_add)
                     # print('this_field says', this_field)
                     line_record_dict[this_field] = utils.TMString(content_to_add)
 
@@ -236,10 +252,18 @@ class Column:
 
             # If we've hit the limit, push these lines and
             # empty the containers
-            if len(line_content) == self.reserved_padding: # or not fmt_to_parse:
+            if len(line_content) == this_line_max_length: # or not fmt_to_parse:
+
+                # If there is a deficit between the total reserved padding
+                # and the max length from the textwrap, make it up here
+                # with additional padding.
+                to_pad = self.reserved_padding - this_line_max_length
+                if to_pad:
+                    line_fmt += (' ' * to_pad)
+
                 # print('WE HAVE FILLED UP A LINE')
-                # print(line_content)
-                # print(line_fmt)
+                print(line_content)
+                print(line_fmt)
                 # print(line_record_dict)
 
                 s = line_fmt.format(**line_record_dict)
@@ -249,9 +273,14 @@ class Column:
 
                 # fmt_lines.append(line_fmt)
                 # content_lines.append(line_content)
-                line_content = ''
-                line_fmt = ''
-                line_record_dict = {}
+                # if still fmt_to_parse, reset containers and increment
+                # line index to get the new max length of the line.
+                if fmt_to_parse:
+                    current_line_index += 1
+                    this_line_max_length = line_length_map[current_line_index]
+                    line_content = ''
+                    line_fmt = ''
+                    line_record_dict = {}
 
             # If we've run out of fmt to parse, we need to then add
             # the whitespace for the format.
