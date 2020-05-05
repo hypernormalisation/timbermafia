@@ -25,9 +25,12 @@ class TimbermafiaFormatter(logging.Formatter):
 
         if self.style:
             self.conf = self.style.generate_column_settings()
-            self.n_columns = self.style.conf.get(
-                'n_columns', shutil.get_terminal_size().columns
-            )
+            self.n_columns = self.style.n_columns
+
+            #
+            # self.n_columns = self.style.conf.get(
+            #     'n_columns', shutil.get_terminal_size().columns
+            # )
 
     def format_column_contents(self, record):
         """
@@ -119,15 +122,15 @@ class TimbermafiaFormatter(logging.Formatter):
 
         # If requested, colour the output by the log level.
         if not self.style.monochrome:
-            full_lines = self.get_colour_output_by_level(full_lines, record)
+            full_lines = self.get_colourised_output_by_level(full_lines, record)
 
         # Join each with a newline and return.
         return '\n'.join(full_lines)
 
-    def get_colour_output_by_level(self, lines, record):
+    def get_colourised_output_by_level(self, lines, record):
         """
         Takes a list of lines and applies ANSI formatting based on the
-        Style's colour palette.
+        Style's colour palette and log level.
         """
         # Get the palette settings.
         level = record if isinstance(record, str) else record.levelno
@@ -166,10 +169,16 @@ class TimbermafiaFormatter(logging.Formatter):
         if not self.style:
             return super().format(record)
 
+        # If the terminal output has changed since the last call,
+        # and fit_to_terminal is true, regenerate the columns.
+        if self.style.fit_to_terminal:
+            current_n_columns = shutil.get_terminal_size().columns
+            if self.n_columns != current_n_columns:
+                self.conf = self.style.generate_column_settings()
+                self.n_columns = current_n_columns
+
         # If requested, clean output.
         if self.style.clean_output:
-            # print(record.funcName)
-            # record.funcName = record.funcName.replace('.<module>', '')
             record.name = record.name.replace('root.', '')
 
         # Get the message and if necessary the time.

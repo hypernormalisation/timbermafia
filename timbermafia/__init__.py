@@ -21,7 +21,7 @@ FIXED_LENGTH_FIELDS = ['asctime', 'levelname']
 
 STYLES = {
     'minimalist': {
-        'default_format': '{asctime} _ {message}',
+        'format': '{asctime} _ {message}',
     }
 }
 
@@ -38,11 +38,10 @@ STYLE_DEFAULTS = {
     },
     'truncate': ['name', 'funcName'],
     'truncation_chars': '\u2026',
-    'format': '{asctime} _ {levelname} _ {name}.{funcName} __>'
-                  ' {threadName} {message:>15}',
+    'format': '{asctime} _ {levelname} _ {name}.{funcName} __> {message:>15} __|',
     'column_escape': '_',
     'format_style': '{',
-    'fit_to_terminal': False,
+    'fit_to_terminal': True,
     'n_columns': 120,
     'clean_output': True,
     'monochrome': False,
@@ -53,9 +52,8 @@ class Column:
 
     def __init__(self, fmt, justify=str.rjust,
                  time_fmt='%H:%M:%S',
-                 truncation_fields=[],
+                 truncation_fields=None,
                  truncation_chars='...'):
-        # self.fmt = fmt
         fmt = fmt.lstrip().rstrip()
         self.time_fmt = time_fmt
         self.fmt = fmt
@@ -64,9 +62,10 @@ class Column:
         self.fields = re.findall(r'(?<=\{)[a-zA-Z]+(?=[\}:])', fmt)
 
         self.truncate_enabled = False
-        for f in self.fields:
-            if f in truncation_fields:
-                self.truncate_enabled = True
+        if truncation_fields:
+            for f in self.fields:
+                if f in truncation_fields:
+                    self.truncate_enabled = True
 
         self.justify = justify
         self.multiline = False
@@ -119,15 +118,12 @@ class Column:
         by a log record component, and the fixed length asctime and max
         length of any log levelname.
         """
-
         # Add space from the template that won't be formatted
         contents_no_formats = re.sub(r'\{\S+?\}', '', self.fmt)
         self.reserved_padding += len(contents_no_formats)
-        # print(self.fields)
         # If time is present add it.
         if 'asctime' in self.fields:
             self.reserved_padding += self.time_format_length
-
         # If levelname present add it.
         if 'levelname' in self.fields:
             self.reserved_padding += self.max_levelname_length
@@ -157,17 +153,14 @@ class Column:
 
         Returns a list of formatted lines.
         """
-        # Figure out how many lines we will need by calling the
-        # basic_fmt.format with a textwrap.
+        # Figure out the structure of the multiline output by
+        # first using a textwrap with the basic version
+        # of the format
         basic_string = self.fmt_basic.format(**record_dict)
         basic_lines = self.wrapper.wrap(basic_string)
-        # print(basic_lines)
 
         line_length_map = {index: len(line) for index, line
                            in enumerate(basic_lines)}
-        # print(line_length_map)
-        current_line_index = 0
-        this_line_max_length = line_length_map[current_line_index]
 
         # This will be processed from the beginning until gone.
         fmt_to_parse = self.fmt
@@ -180,10 +173,12 @@ class Column:
         current_line_index = 0
         this_line_max_length = line_length_map[current_line_index]
 
+        # Iterate over the format and create a new format and specialised
+        # format_dict contents for this line.
         while fmt_to_parse:
 
+            # Get the first character in the format string
             c = fmt_to_parse[0]
-
             # If it's not a format, simply add to this_fmt and remove
             # from fmt_to_be_parsed
             if c != '{':
@@ -204,28 +199,21 @@ class Column:
                 first_format = re.match(
                     ptn, fmt_to_parse
                 ).group('first_format')
-                # print('first_format:', first_format)
-
                 line_fmt += first_format
 
                 # Get content
                 this_field = self.return_field_from_format(first_format)
-                # print('##', this_field, self.return_simplified_fmt(first_format))
                 this_content = record_dict[this_field]
 
+                # Remove leading whitespace characters on new lines.
                 if this_content[0].isspace() and len(line_content) == 0:
-                    # print('STRIPPING WHITESPACES')
                     this_content = this_content[1:]
                     record_dict[this_field] = record_dict[this_field][1:]
-                # print(this_line_max_length)
-                # print('##', this_content)
-                # while this_content and not len(line_content):
 
                 # If the whole thing takes us over the limit, slice off what
                 # we can fit, AND DO NOT PURGE THE FORMAT FROM THE fmt_to_parse
                 if (len(line_content) +
                         len(this_content)) > this_line_max_length:
-                    # print('too much content for this line')
                     space_this_line = this_line_max_length - len(line_content)
 
                     content_to_add = this_content[:space_this_line]
@@ -233,23 +221,19 @@ class Column:
                     # Remove this from the total record dict and add it to the
                     # total content for this line.
                     line_content += content_to_add
-
                     record_dict[this_field] = record_dict[this_field][space_this_line:]
-                    # print(content_to_add)
-                    # print('this_field says', this_field)
                     line_record_dict[this_field] = utils.TMString(content_to_add)
 
                 # Else we can add the thing wholesale
                 # Also remove the format space from the fmt_to_parse
                 else:
-                    # print('can fit all content in this line')
                     line_content += this_content
                     line_record_dict[this_field] = utils.TMString(this_content)
                     fmt_to_parse = re.sub(first_format, '', fmt_to_parse)
 
             # If we've hit the limit, push these lines and
             # empty the containers
-            if len(line_content) == this_line_max_length: # or not fmt_to_parse:
+            if len(line_content) == this_line_max_length:
 
                 # If there is a deficit between the total reserved padding
                 # and the max length from the textwrap, make it up here
@@ -257,20 +241,10 @@ class Column:
                 to_pad = self.reserved_padding - this_line_max_length
                 if to_pad:
                     line_fmt += (' ' * to_pad)
-
-                # print('WE HAVE FILLED UP A LINE')
-                # print(line_content)
-                # print(line_fmt)
-                # print(line_record_dict)
-
                 s = line_fmt.format(**line_record_dict)
                 formatted_lines.append(s)
-                # print(s)
-                # break
 
-                # fmt_lines.append(line_fmt)
-                # content_lines.append(line_content)
-                # if still fmt_to_parse, reset containers and increment
+                # If still fmt_to_parse, reset containers and increment
                 # line index to get the new max length of the line.
                 if fmt_to_parse:
                     current_line_index += 1
@@ -280,17 +254,13 @@ class Column:
                     line_record_dict = {}
 
             # If we've run out of fmt to parse, we need to then add
-            # the whitespace for the format.
+            # some padding to finish out this row of the column.
             elif not fmt_to_parse:
-                # print('=== Finished and hit the last line, need to pad.')
                 extra_room = self.reserved_padding - len(line_content) + len(line_fmt)
-                # print(extra_room, line_content)
                 line_fmt = self.justify(line_fmt, extra_room)
                 s = line_fmt.format(**line_record_dict)
                 formatted_lines.append(s)
 
-
-        # print(formatted_lines)
         return formatted_lines
 
     def justify_and_pad_input(self, record_dict):
@@ -423,7 +393,10 @@ class Style:
         # Explicitly set the properties a logging.Formatter object
         # expects that need custom verification.
         self.format_style = kwargs.get('format_style', conf['format_style'])
-        self.log_format = kwargs.get('format', conf['format'])
+        log_format = kwargs.get('format')
+        if not log_format:
+            log_format = conf['format']
+        self.log_format = log_format
         self.time_format = kwargs.get('time_format', conf['time_format'])
 
         # Bundle other settings in a dict.
@@ -436,11 +409,6 @@ class Style:
     @property
     def monochrome(self):
         return self.conf['monochrome']
-
-    # @monochrome.setter
-    # def monochrome(self, v):
-    #     try:
-    #         self.
 
     @format_style.setter
     def format_style(self, s):
@@ -468,12 +436,6 @@ class Style:
         # regex check here
         self._time_fmt = f
 
-    # @property
-    # def time_format_length(self):
-    #     """Returns the length in chars of the asctime
-    #     with the current time format"""
-    #     return len(time.strftime(self.time_format))
-
     @property
     def max_levelname_length(self):
         """Gets the character length of the maximum level name."""
@@ -498,8 +460,14 @@ class Style:
         return fmt
 
     @property
-    def n_columns(self):
+    def fit_to_terminal(self):
         if self.conf['fit_to_terminal']:
+            return True
+        return False
+
+    @property
+    def n_columns(self):
+        if self.fit_to_terminal:
             return shutil.get_terminal_size().columns
         else:
             return self.conf.get('n_columns')
@@ -525,7 +493,6 @@ class Style:
         """
         If true, removes the following:
         - "root." from logger names
-        - "__module__" from logger names
         """
         return self.conf['clean_output']
 
@@ -549,6 +516,7 @@ class Style:
         # which does not account for any adaptive
         # length record components.
         # print(self.no_ansi_log_format)
+        print(self.n_columns)
         total_used_space = sum([c.reserved_padding for c
                                 in column_dict.values()])
 
@@ -603,8 +571,6 @@ class Style:
             if f not in ad2:
                 ad2[f] = d['char_length']
 
-        # print(ad2)
-
         # We've used floors so might have multiple chars to spare.
         # Consider incrementing the message char_length here if the sum
         # is below the space_for_adaptive
@@ -626,17 +592,17 @@ class Style:
                     if deficit == 0:
                         break
 
-    def evaluate_multiline_possibility(self, column_dict):
-        """Figure out it is possible that a column requires
-        multiple lines of output"""
-        for c in column_dict.values():
-            truncate = False
-            if c.adaptive_fields:
-                for field in c.adaptive_fields:
-                    if field in self.conf['truncate']:
-                        truncate = True
-            if c.adaptive_fields and not truncate:
-                c.multiline = True
+    # def evaluate_multiline_possibility(self, column_dict):
+    #     """Figure out it is possible that a column requires
+    #     multiple lines of output"""
+    #     for c in column_dict.values():
+    #         truncate = False
+    #         if c.adaptive_fields:
+    #             for field in c.adaptive_fields:
+    #                 if field in self.conf['truncate']:
+    #                     truncate = True
+    #         if c.adaptive_fields and not truncate:
+    #             c.multiline = True
 
     def set_column_justifications(self, column_dict):
         """If required changes the Column.justify values
@@ -690,8 +656,6 @@ class Style:
             utils.logrecord_present_pattern.match(x)
         ]
 
-        # print(parts)
-        # print(self.time_format)
         column_dict = {k: Column(
             part, justify=self.default_justify,
             time_fmt=self.time_format,
@@ -722,7 +686,7 @@ class Style:
         # print(template)
         self.set_column_justifications(column_dict)
         self.calculate_padding(column_dict, separator_dict, template)
-        self.evaluate_multiline_possibility(column_dict)
+        # self.evaluate_multiline_possibility(column_dict)
 
         # Internally assign these attributes.
         self._column_dict = column_dict
@@ -764,8 +728,7 @@ def basic_config(
 
     Describe Args here
     """
-    logging._acquireLock()  # don't like that this is protected
-
+    logging._acquireLock()
     try:
         # Reference to the root logger
         logger = logging.root
@@ -780,7 +743,11 @@ def basic_config(
         # Only create formatters and styles as required.
         use_custom_formatter = stream or (filename and not basic_files)
         custom_formatter, default_formatter = None, None
-        my_style = Style(style=style, format=format, palette=palette)
+        my_style = None
+        if format:
+            my_style = Style(preset=style, format=format, palette=palette)
+        else:
+            my_style = Style(preset=style, palette=palette)
 
         if use_custom_formatter:
             custom_formatter = configure_custom_formatter(my_style)
@@ -817,8 +784,14 @@ def basic_config(
                 print('  -', h)
 
     finally:
-        logging._releaseLock()  # again don't like this
+        logging._releaseLock()
 
+
+def resize_test():
+    import timbermafia as tm
+    tm.basic_config()
+    import logging
+    return logging.getLogger(__name__)
 
 class Logged:
     """
