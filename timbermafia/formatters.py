@@ -20,24 +20,19 @@ class TimbermafiaFormatter(logging.Formatter):
         it and set the number of columns.
         """
         super().__init__(fmt, time_fmt, style, validate=validate)
+
         self.style = timbermafia_style
-        self.conf, self.n_columns = None, None
-
+        self.n_columns = None
         if self.style:
-            self.conf = self.style.generate_column_settings()
+            self.style.generate_column_settings()
             self.n_columns = self.style.n_columns
-
-            #
-            # self.n_columns = self.style.conf.get(
-            #     'n_columns', shutil.get_terminal_size().columns
-            # )
 
     def format_column_contents(self, record):
         """
         Creates a map of the column's template key to a list
         of lines to be output.
         """
-        column_dict = self.conf['columns']
+        column_dict = self.style.generated_settings['columns']
         formatted_string_dict = {}
 
         # Iterate over columns and take the most efficient action based
@@ -97,7 +92,7 @@ class TimbermafiaFormatter(logging.Formatter):
         to be pushed to the Handlers.
         """
         full_lines = []
-        template = self.conf['template']
+        template = self.style.generated_settings['template']
 
         # Get the number of lines (the lengths of the lines are
         # the same for all columns at this stage).
@@ -113,7 +108,7 @@ class TimbermafiaFormatter(logging.Formatter):
 
             # Get the separators for this line index.
             sd = {key: s.return_separator_string(line_index)
-                for key, s in self.conf['separators'].items()
+                for key, s in self.style.generated_settings['separators'].items()
             }
 
             # Add separator dict to column dict and format
@@ -174,7 +169,7 @@ class TimbermafiaFormatter(logging.Formatter):
         if self.style.fit_to_terminal:
             current_n_columns = shutil.get_terminal_size().columns
             if self.n_columns != current_n_columns:
-                self.conf = self.style.generate_column_settings()
+                self.style.generate_column_settings()
                 self.n_columns = current_n_columns
 
         # If requested, clean output.
