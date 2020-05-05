@@ -1,4 +1,5 @@
 import logging
+import re
 import shutil
 import timbermafia.utils as utils
 
@@ -86,7 +87,7 @@ class TimbermafiaFormatter(logging.Formatter):
 
         return formatted_string_dict
 
-    def form_output_string(self, column_string_dict):
+    def form_output_string(self, column_string_dict, record):
         """
         Take the map of the template key mapped to the lines,
         combine with the separators, and return the full string
@@ -116,8 +117,45 @@ class TimbermafiaFormatter(logging.Formatter):
             cd.update(sd)
             full_lines.append(template.format(**cd))
 
+        # If requested, colour the output by the log level.
+        if not self.style.monochrome:
+            full_lines = self.get_colour_output_by_level(full_lines, record)
+
         # Join each with a newline and return.
         return '\n'.join(full_lines)
+
+    def get_colour_output_by_level(self, lines, record):
+        """
+        Takes a list of lines and applies ANSI formatting based on the
+        Style's colour palette.
+        """
+        # Get the palette settings.
+        level = record if isinstance(record, str) else record.levelno
+        palette_settings = self.style.palette.get(level)
+        if not palette_settings:
+            return lines
+
+        fg_colour, bg_colour, bold = palette_settings
+        total_ansi = ''
+        if fg_colour:
+            total_ansi += utils.fg.format(fg_colour)
+        if bg_colour:
+            total_ansi += utils.bg.format(bg_colour)
+        if bold:
+            total_ansi += utils.BOLD
+
+        new_lines = []
+        for line in lines:
+            # Add the colour at the start of the line
+            line = total_ansi + line
+            # Now find any resets and replace them with a
+            # reset + our new ansi.
+            line = line.replace(utils.RESET, utils.RESET+total_ansi)
+            # Add a final reset
+            line = line + utils.RESET
+            new_lines.append(line)
+
+        return new_lines
 
     def format(self, record):
         """
@@ -130,7 +168,8 @@ class TimbermafiaFormatter(logging.Formatter):
 
         # If requested, clean output.
         if self.style.clean_output:
-            record.name = record.name.replace('__module__', '')
+            # print(record.funcName)
+            # record.funcName = record.funcName.replace('.<module>', '')
             record.name = record.name.replace('root.', '')
 
         # Get the message and if necessary the time.
@@ -140,8 +179,8 @@ class TimbermafiaFormatter(logging.Formatter):
 
         # Create a map of the template key to the column lines.
         d = self.format_column_contents(record)
-        # Use that map to construct the full string.
-        s = self.form_output_string(d)
+        # Use that map and record to construct the full string.
+        s = self.form_output_string(d, record)
 
         # Handle exceptions.
         if record.exc_info:

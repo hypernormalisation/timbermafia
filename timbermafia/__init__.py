@@ -9,7 +9,7 @@ import time
 import timbermafia.formats
 from timbermafia.rainbow import (
     RainbowStreamHandler,
-    RainbowFileHandler, palette_dict
+    RainbowFileHandler, PALETTE_DICT
 )
 from timbermafia.formatters import TimbermafiaFormatter
 import timbermafia.utils as utils
@@ -30,25 +30,22 @@ STYLE_DEFAULTS = {
     'justify': {
         'default': str.rjust,
         'left': ['message'],
-        # 'right': ['funcName'],
         },
     'time_format': '%H:%M:%S',
     'padding': {
         'default': 0.2,
         'message': 1.0,
-        # 'threadName': 1.5,
-        # 'name': 0.15,
-        # 'funcName': 0.15,
     },
     'truncate': ['name', 'funcName'],
     'truncation_chars': '\u2026',
-    'log_format': '{asctime} _ {levelname} _ {name}.{funcName} __>'
-                  ' MSG: {message:>15} __| {threadName}',
+    'format': '{asctime} _ {levelname} _ {name}.{funcName} __>'
+                  ' {threadName} {message:>15}',
     'column_escape': '_',
     'format_style': '{',
     'fit_to_terminal': False,
     'n_columns': 120,
     'clean_output': True,
+    'monochrome': False,
 }
 
 
@@ -164,11 +161,11 @@ class Column:
         # basic_fmt.format with a textwrap.
         basic_string = self.fmt_basic.format(**record_dict)
         basic_lines = self.wrapper.wrap(basic_string)
-        print(basic_lines)
+        # print(basic_lines)
 
         line_length_map = {index: len(line) for index, line
                            in enumerate(basic_lines)}
-        print(line_length_map)
+        # print(line_length_map)
         current_line_index = 0
         this_line_max_length = line_length_map[current_line_index]
 
@@ -217,18 +214,18 @@ class Column:
                 this_content = record_dict[this_field]
 
                 if this_content[0].isspace() and len(line_content) == 0:
-                    print('STRIPPING WHITESPACES')
+                    # print('STRIPPING WHITESPACES')
                     this_content = this_content[1:]
                     record_dict[this_field] = record_dict[this_field][1:]
-                print(this_line_max_length)
-                print('##', this_content)
+                # print(this_line_max_length)
+                # print('##', this_content)
                 # while this_content and not len(line_content):
 
                 # If the whole thing takes us over the limit, slice off what
                 # we can fit, AND DO NOT PURGE THE FORMAT FROM THE fmt_to_parse
                 if (len(line_content) +
                         len(this_content)) > this_line_max_length:
-                    print('too much content for this line')
+                    # print('too much content for this line')
                     space_this_line = this_line_max_length - len(line_content)
 
                     content_to_add = this_content[:space_this_line]
@@ -238,7 +235,7 @@ class Column:
                     line_content += content_to_add
 
                     record_dict[this_field] = record_dict[this_field][space_this_line:]
-                    print(content_to_add)
+                    # print(content_to_add)
                     # print('this_field says', this_field)
                     line_record_dict[this_field] = utils.TMString(content_to_add)
 
@@ -262,8 +259,8 @@ class Column:
                     line_fmt += (' ' * to_pad)
 
                 # print('WE HAVE FILLED UP A LINE')
-                print(line_content)
-                print(line_fmt)
+                # print(line_content)
+                # print(line_fmt)
                 # print(line_record_dict)
 
                 s = line_fmt.format(**line_record_dict)
@@ -299,26 +296,19 @@ class Column:
     def justify_and_pad_input(self, record_dict):
         """Func to take output needing padding and justification
         and perform it."""
-        fmt = self.fmt
-
         # Need the basic formatted content to know how much to
         # pad the format
+        fmt = self.fmt
         basic_content = self.fmt_basic.format(**record_dict)
         extra_room = self.reserved_padding - len(basic_content) + len(fmt)
-        # print('extra_room', extra_room)
-
+        # Use the specified justify function to pad the format string.
         fmt = self.justify(fmt, extra_room)
-        # print(self.justify)
-        # print(f'just format: "{fmt}"')
-
-        # print(fmt, record_dict)
         return fmt.format(**record_dict)
 
     def truncate_input(self, record_dict):
-        """Truncate the elements in place as needed."""
-
+        """Truncate the format and content using the allotted space."""
         fmt_to_parse = self.fmt
-        new_fmt = ''  # contains the new format
+        new_fmt = ''
 
         # Contains the output content as it is pushed back
         running_total_content = ''
@@ -331,7 +321,6 @@ class Column:
 
             # Final char in fmt string
             c = fmt_to_parse[-1]
-            # print(c)
 
             # If not a format component, trim the character from the
             # old format and push it to the new one, then continue.
@@ -351,15 +340,12 @@ class Column:
 
             # Now figure out the field and get the corresponding contents
             this_field = self.return_field_from_format(last_format)
-            # print('##', this_field, self.return_simplified_fmt(last_format))
             this_content = record_dict[this_field]
-            # print(this_content)
 
             # If the whole thing fits, add the contents in full.
             # Add an entry in the new component dict, then continue
-            if (len(this_content) + len(running_total_content)
-            ) < allowed_padding:
-                # print('all fits')
+            if (len(this_content) +
+                    len(running_total_content)) < allowed_padding:
                 running_total_content = this_content + running_total_content
                 fitted_component_dict[this_field] = this_content
                 continue
@@ -367,13 +353,11 @@ class Column:
             # If it does not, curtail the content, push the trunc chars
             # to the content, and break the while loop
             space = allowed_padding - len(running_total_content)
-            # print('space', space)
 
-            # take the last n=space chars from the end of the contents
+            # Take the last n=space chars from the end of the contents
             partial_content = this_content[-space:]
-            # push back trunc chars
+            # Add the truncation characters to the start of the string.
             partial_content = self.truncation_chars + partial_content
-            # print(partial_content)
             fitted_component_dict[this_field] = partial_content
             break
 
@@ -383,9 +367,7 @@ class Column:
         for field, s in fitted_component_dict.items():
             final_dict[field] = utils.TMString(s)
 
-        # print(f'new format: {new_fmt}')
-        # print('new contents:', final_dict)
-
+        # Finally, format the full string and return.
         return new_fmt.format(**final_dict)
 
 
@@ -396,7 +378,6 @@ class Separator:
         self.content_escaped = content.replace(column_escape, '')
         self.length = len(self.content_escaped)
         self.multiline = '__' in self.content
-        # print(self.__dict__)
 
     def return_separator_string(self, line_index):
         """Return a string for the separator
@@ -434,13 +415,16 @@ class Style:
         self._single_line_output = None
         self._fields = None
 
-        # Explicitly set the properties a logging.Formatter object
-        # expects that need custom verification
-        self.format_style = kwargs.get('format_style', conf['format_style'])
+        # Get the requested colour palette for the log levels.
+        palette_key = kwargs.get('palette', 'sensible')
+        self.palette_key = palette_key
+        self.palette = PALETTE_DICT[palette_key]
 
-        self.log_format = kwargs.get('log_format', conf['log_format'])
+        # Explicitly set the properties a logging.Formatter object
+        # expects that need custom verification.
+        self.format_style = kwargs.get('format_style', conf['format_style'])
+        self.log_format = kwargs.get('format', conf['format'])
         self.time_format = kwargs.get('time_format', conf['time_format'])
-        # print(self.log_format)
 
         # Bundle other settings in a dict.
         self.conf = conf
@@ -448,6 +432,15 @@ class Style:
     @property
     def format_style(self):
         return self._fmt_style
+
+    @property
+    def monochrome(self):
+        return self.conf['monochrome']
+
+    # @monochrome.setter
+    # def monochrome(self, v):
+    #     try:
+    #         self.
 
     @format_style.setter
     def format_style(self, s):
@@ -555,18 +548,20 @@ class Style:
         # Get the total reserved space from each column,
         # which does not account for any adaptive
         # length record components.
+        # print(self.no_ansi_log_format)
         total_used_space = sum([c.reserved_padding for c
                                 in column_dict.values()])
 
         # Add spaces from the template
         # ws = [i for i in template if i.is]
+        # print(template)
         non_special_chars = ''.join(
             [s for s in re.findall(r'(.*?)\{.*?\}', template) if s]
         )
         # print(non_special_chars)
-        # print(len(non_special_chars))
+        nsp_len = len(non_special_chars)
         total_used_space += len(non_special_chars)
-
+        # print('non_special_chars_len', len(non_special_chars))
         # Add space used on separators
         separator_padding = 0
         for s in separator_dict.values():
@@ -613,16 +608,23 @@ class Style:
         # We've used floors so might have multiple chars to spare.
         # Consider incrementing the message char_length here if the sum
         # is below the space_for_adaptive
-
-        test_padding = 0
+        all_column_padding = 0
         for c in column_dict.values():
             for f in c.adaptive_fields:
                 char_length = ad2[f]
                 c.reserved_padding += char_length
-            test_padding += c.reserved_padding
+            all_column_padding += c.reserved_padding
 
-        # print(test_padding, separator_padding)
-        deficit = self.n_columns - test_padding - separator_padding
+        # Iter over the columns and if we have adaptive fields, increment the
+        # reserved padding to take us to the max.
+        deficit = self.n_columns - all_column_padding - separator_padding - nsp_len
+        while deficit > 0:
+            for c in column_dict.values():
+                if c.adaptive_fields:
+                    c.reserved_padding += 1
+                    deficit -= 1
+                    if deficit == 0:
+                        break
 
     def evaluate_multiline_possibility(self, column_dict):
         """Figure out it is possible that a column requires
@@ -754,7 +756,8 @@ def configure_default_formatter(style):
 
 
 def basic_config(
-        style=None, format=None, stream=sys.stdout, filename=None, palette='sensible',
+        style=None, format=None, stream=sys.stdout, filename=None,
+        palette='sensible', silent=False,
         clear=False, basic_files=True, handlers=None, level=logging.DEBUG,
         ):
     """Function for basic configuration of timbermafia logging.
@@ -777,7 +780,7 @@ def basic_config(
         # Only create formatters and styles as required.
         use_custom_formatter = stream or (filename and not basic_files)
         custom_formatter, default_formatter = None, None
-        my_style = Style(style=style, fmt=format)
+        my_style = Style(style=style, format=format, palette=palette)
 
         if use_custom_formatter:
             custom_formatter = configure_custom_formatter(my_style)
@@ -789,8 +792,8 @@ def basic_config(
 
         # Add stream handler if specified
         if stream:
-            # h = logging.StreamHandler(stream=sys.stdout)
-            h = RainbowStreamHandler(stream=sys.stdout, palette=palette)
+            h = logging.StreamHandler(stream=sys.stdout)
+            # h = RainbowStreamHandler(stream=sys.stdout, palette=palette)
             h.setFormatter(custom_formatter)
             handlers.append(h)
 
@@ -802,15 +805,16 @@ def basic_config(
             else:
                 h.setFormatter(custom_formatter)
 
+        # Set logging levels.
         for h in handlers:
             h.setLevel(level)
             logger.addHandler(h)
-
         logger.setLevel(level)
 
-        print('- timbermafia has configured handlers:')
-        for h in handlers:
-            print('  -', h)
+        if not silent:
+            print('- timbermafia has configured handlers:')
+            for h in handlers:
+                print('  -', h)
 
     finally:
         logging._releaseLock()  # again don't like this

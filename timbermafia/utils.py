@@ -12,6 +12,11 @@ RESET = '\033[0m'
 UNDERLINE = '\033[4m'
 
 
+fg = "\033[38;5;{}m"
+bg = "\033[48;5;{}m"
+# reset = "\033[39m"
+reset = "\033[0m"
+
 alpha_pattern = re.compile('[a-zA-Z]*')
 numeric_pattern = re.compile('[0-9]*')
 both_pattern = re.compile('[A-Za-z0-9]*([a-zA-Z]+[0-9]+|[0-9]+[a-zA-Z]+)')
@@ -124,14 +129,3 @@ class TMString(str):
             )
         else:
             return self.content
-
-
-#
-# def headed_log(func):
-#     """A decorator for header breaks in stdout."""
-#     def timbermafia_decorator_divider(self, *args, **kwargs):
-#         print(*args)
-#         self.func(divider())
-#         self.func(*args, **kwargs)
-#         self.func(divider())
-#     return timbermafia_decorator_divider
