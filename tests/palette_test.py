@@ -5,7 +5,7 @@ my_colours = {
     logging.DEBUG: {'fg': 200}
 }
 
-p = Palette(preset='sensible2')
+p = Palette(preset='sensible')
 print(p.palette_dict)
 
 p.update_colours(my_colours)
