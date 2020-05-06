@@ -3,7 +3,7 @@ import timbermafia as tm
 import time
 import sys
 
-f = '{asctime:u} __| {name}.{funcName} __>> {message:b,>15} __<<'
+f = '{asctime:u} {levelname} _ {name}.{funcName} __>> {message:b,>15}'
 tm.basic_config(format=f, palette='synth', silent=True)
 
 # tm.basic_config(palette='synth')
@@ -40,5 +40,5 @@ while True:
     A.test_function()
     A.function_with_a_very_very_long_name()
     sys.exit()
-    time.sleep(5)
+    # time.sleep(2.5)
 

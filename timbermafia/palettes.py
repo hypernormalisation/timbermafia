@@ -77,7 +77,6 @@ class Palette:
 
         # If given a preset get those settings.
         self.palette_dict = PALETTE_DICT[preset]
-        # print(self.palette_dict)
 
         # If given a colour map directly, use it.
         if custom:
