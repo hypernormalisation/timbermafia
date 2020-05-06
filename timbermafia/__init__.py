@@ -7,7 +7,7 @@ import sys
 import textwrap
 import time
 import timbermafia.formats
-from timbermafia.rainbow import PALETTE_DICT
+from timbermafia.palettes import PALETTE_DICT
 from timbermafia.formatters import TimbermafiaFormatter
 import timbermafia.utils as utils
 
@@ -32,26 +32,32 @@ STYLE_DEFAULTS = {
     'padding': {
         'default': 0.2,
         'message': 1.4,
+        'funcName': 0.3,
+        # 'module': 0.14,
     },
     'truncate': ['name', 'funcName'],
     'truncation_chars': '\u2026',
-    'format': '{asctime:u} _ {name}.{funcName} __>> {message:>15} ',
+    'format': '{asctime:u} _| {levelname} _| {name}.{funcName} __>> {message:>15} ',
     'column_escape': '_',
     'format_style': '{',
     'fit_to_terminal': True,
     'n_columns': 120,
-    'max_width': 160,
+    'max_width': 180,
     'clean_output': True,
     'monochrome': False,
+    'short_levels': True,
 }
 
 
 class Column:
 
-    def __init__(self, fmt, justify=str.rjust,
-                 time_fmt='%H:%M:%S',
-                 truncation_fields=None,
-                 truncation_chars='...'):
+    def __init__(
+            self, fmt, justify=str.rjust,
+            time_fmt='%H:%M:%S',
+            truncation_fields=None,
+            truncation_chars='...',
+            short_levels=None
+            ):
         fmt = fmt.lstrip().rstrip()
         self.time_fmt = time_fmt
         self.fmt = fmt
@@ -66,7 +72,8 @@ class Column:
                     self.truncate_enabled = True
 
         self.justify = justify
-        self.multiline = False
+        # self.multiline = False
+        self.short_levels = short_levels
 
         self.adaptive_fields = [x for x in self.fields
                                 if x not in FIXED_LENGTH_FIELDS]
@@ -129,6 +136,8 @@ class Column:
     @property
     def max_levelname_length(self):
         """Gets the character length of the maximum level name."""
+        if self.short_levels:
+            return 1
         return len(max(logging._nameToLevel.keys(), key=len))
 
     @property
@@ -440,6 +449,8 @@ class Style:
     @property
     def max_levelname_length(self):
         """Gets the character length of the maximum level name."""
+        if self.short_levels:
+            return 1
         return len(max(logging._nameToLevel.keys(), key=len))
 
     @property
@@ -469,6 +480,10 @@ class Style:
     @property
     def max_width(self):
         return self.conf.get('max_width', False)
+
+    @property
+    def short_levels(self):
+        return self.conf.get('short_levels', False)
 
     @property
     def n_columns(self):
@@ -644,7 +659,8 @@ class Style:
             part, justify=self.default_justify,
             time_fmt=self.time_format,
             truncation_fields=self.conf['truncate'],
-            truncation_chars=self.conf['truncation_chars']
+            truncation_chars=self.conf['truncation_chars'],
+            short_levels=self.short_levels
             ) for k, part in zip(string.ascii_uppercase, parts)
         }
 
