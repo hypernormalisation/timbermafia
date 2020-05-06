@@ -1,7 +1,5 @@
 import collections.abc
-import fnmatch
 import logging
-import re
 import timbermafia.utils as utils
 
 # Preset colour palettes using 8-bit ANSI codes.

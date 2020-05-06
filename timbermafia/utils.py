@@ -1,8 +1,5 @@
 import re
 
-divider_flag = 'ab9367b3-d977-44ec-bce7-fef40aa4428d'
-header_flag = 'timbermafia_header_04ce0a20e181'
-replacer_flag = 'timbermafia_replacer_f0df7d32d480'
 LOCALFILE = 'file'
 URL = 'url'
 TEMPLATE = '\033[{}m'
@@ -10,11 +7,6 @@ BOLD = '\033[1m'
 EMPH = '\33[3m'
 RESET = '\033[0m'
 UNDERLINE = '\033[4m'
-
-
-fg = "\033[38;5;{}m"
-bg = "\033[48;5;{}m"
-reset = "\033[0m"
 
 alpha_pattern = re.compile('[a-zA-Z]*')
 numeric_pattern = re.compile('[0-9]*')
@@ -26,29 +18,6 @@ logrecord_present_pattern = re.compile(r'.*\{\w+(:\S+)?\}.*')
 
 fg_escape = '>'
 bg_escape = '<'
-
-
-def divider():
-    return divider_flag
-
-
-def run_from_ipython():
-    try:
-        # noinspection PyUnresolvedReferences
-        __IPYTHON__
-        return True
-    except NameError:
-        return False
-
-
-def transform_record(record):
-    """Function to convert any strings in a LogRecord's
-    properties to a TMString"""
-    new_d = {}
-    for key, value in record.__dict__.items():
-        if isinstance(value, str):
-            new_d[key] = TMString(value)
-    record.__dict__.update(new_d)
 
 
 class TMString(str):
