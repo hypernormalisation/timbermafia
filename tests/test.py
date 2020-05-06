@@ -4,9 +4,9 @@ import time
 import sys
 
 f = '{asctime:u} _ {levelname} _ {name}.{funcName} __>> {message:b,>15}'
-tm.basic_config(format=f, palette='synth', silent=True)
+# tm.basic_config(format=f, palette='synth', silent=True)
 
-# tm.basic_config(palette='synth')
+tm.basic_config(filename='/tmp/my.log', stream=sys.stdout)  # palette='synth')
 
 st = 'This is a very long message that will be split over \
 multiple lines in a sensible output width. Column alignments can make' \

@@ -3,7 +3,7 @@ import sys
 import timbermafia.formats
 from timbermafia.palettes import PALETTE_DICT, Palette
 from timbermafia.formatters import TimbermafiaFormatter
-from timbermafia.styles import Style
+from timbermafia.styles import Style, STYLES
 import timbermafia.utils as utils
 
 
@@ -35,6 +35,15 @@ def generate_style_from_preset(preset):
 
 def generate_palette_from_preset(preset):
     return Palette(preset=preset)
+
+
+def print_styles():
+    print('- Preset styles:', ', '.join(STYLES))
+
+
+def print_palettes():
+    print('- Preset palettes:', ', '.join(PALETTE_DICT))
+
 
 def basic_config(
         style=None, format=None, stream=None, filename=None,
@@ -85,7 +94,7 @@ def basic_config(
         if use_custom_formatter:
             custom_formatter = configure_custom_formatter(my_style, my_palette)
 
-        use_default_formatter = filename and not basic_files
+        use_default_formatter = filename and basic_files
         if use_default_formatter:
             # In line below we'll add the basic format from the style property
             default_formatter = configure_default_formatter(my_style)
@@ -103,6 +112,7 @@ def basic_config(
                 h.setFormatter(default_formatter)
             else:
                 h.setFormatter(custom_formatter)
+            handlers.append(h)
 
         # Set logging levels.
         for h in handlers:

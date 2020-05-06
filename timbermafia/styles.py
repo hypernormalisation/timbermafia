@@ -10,6 +10,7 @@ import timbermafia.utils as utils
 FIXED_LENGTH_FIELDS = ['asctime', 'levelname']
 
 STYLES = {
+    'default': {},
     'minimalist': {
         'format': '{asctime} _ {message}',
     }
