@@ -3,7 +3,7 @@ import timbermafia as tm
 import time
 import sys
 
-f = '{asctime:u} {levelname} _ {name}.{funcName} __>> {message:b,>15}'
+f = '{asctime:u} _ {levelname} _ {name}.{funcName} __>> {message:b,>15}'
 tm.basic_config(format=f, palette='synth', silent=True)
 
 # tm.basic_config(palette='synth')
