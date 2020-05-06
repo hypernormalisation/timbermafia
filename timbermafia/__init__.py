@@ -35,14 +35,13 @@ STYLE_DEFAULTS = {
         'funcName': 0.3,
         # 'module': 0.14,
     },
-    'truncate': [], # ['name', 'funcName'],
+    'truncate': ['name', 'funcName'],
     'truncation_chars': '\u2026',
     'format': '{asctime:u} _| {levelname} _| {name}.{funcName} __>> {message:>15} ',
     'column_escape': '_',
-    'format_style': '{',
     'fit_to_terminal': True,
     'n_columns': 120,
-    'max_width': 160,
+    'max_width': 140,
     'clean_output': True,
     'colourised_levels': True,
     'short_levels': True,
@@ -246,12 +245,8 @@ class Column:
                 # and the max length from the textwrap, make it up here
                 # with additional padding.
                 to_pad = self.reserved_padding - this_line_max_length
-                # print(len(line_content), this_line_max_length, to_pad)
                 if to_pad:
-                    # print(f"{line_fmt}")
                     line_fmt = self.justify(line_fmt, to_pad+len(line_fmt))
-                    # print(f"{line_fmt}")
-                    # line_fmt += (' ' * to_pad)
                 s = line_fmt.format(**line_record_dict)
                 formatted_lines.append(s)
 
@@ -362,9 +357,10 @@ class Separator:
         self.multiline = '__' in self.content
 
     def return_separator_string(self, line_index):
-        """Return a string for the separator
+        """
+        Return a string for the separator
         based on an input line number index (starting from zero).
-        multiline always return the normal, otherwise
+        multiline-enabled separators always return the separators, otherwise
         for line_numbers above 0 we give empty space
         the length of the separator.
         """
@@ -392,14 +388,15 @@ class Style:
         # Protected settings
         self._fmt = None
         self._time_fmt = None
-        self._fmt_style = None
+        # At present only the strformat or "{" style is
+        # supported in timbermafia.
+        self._fmt_style = '{'
         self._column_dict = {}
         self._single_line_output = None
         self._fields = None
 
         # Explicitly set the properties a logging.Formatter object
         # expects that need custom verification.
-        self.format_style = kwargs.get('format_style', conf['format_style'])
         log_format = kwargs.get('format')
         if not log_format:
             log_format = conf['format']
@@ -420,13 +417,13 @@ class Style:
     def colourised_levels(self):
         return self.conf['colourised_levels']
 
-    @format_style.setter
-    def format_style(self, s):
-        valid_formats = ['{']
-        if s not in valid_formats:
-            raise ValueError(f'Format style {s} not accepted,'
-                             f' valid are{",".join(valid_formats)}')
-        self._fmt_style = s
+    # @format_style.setter
+    # def format_style(self, s):
+    #     valid_formats = ['{']
+    #     if s not in valid_formats:
+    #         raise ValueError(f'Format style {s} not accepted,'
+    #                          f' valid are{",".join(valid_formats)}')
+    #     self._fmt_style = s
 
     @property
     def format(self):
