@@ -14,7 +14,9 @@ class TimbermafiaFormatter(logging.Formatter):
     """
 
     def __init__(self, fmt=None, time_fmt=None, style='%',
-                 validate=False, timbermafia_style=None):
+                 validate=False,
+                 timbermafia_style=None,
+                 palette=None):
         """
         Usual init for logging.Formatter, and if a style is given, add
         it and set the number of columns.
@@ -22,6 +24,7 @@ class TimbermafiaFormatter(logging.Formatter):
         super().__init__(fmt, time_fmt, style, validate=validate)
 
         self.style = timbermafia_style
+        self.palette = palette
         self.n_columns = None
         if self.style:
             self.style.generate_column_settings()
@@ -45,6 +48,11 @@ class TimbermafiaFormatter(logging.Formatter):
                 k: utils.TMString(v) for k, v in record.__dict__.items()
                 if k in c.fields
             }
+
+            # If short_levels are enabled, abbreviate the level name.
+            if self.style.short_levels:
+                if 'levelname' in record_dict:
+                    record_dict['levelname'] = record_dict['levelname'][0].upper()
 
             # Use the basic format to establish the length and establish
             # the most efficient approach.

@@ -14,7 +14,6 @@ UNDERLINE = '\033[4m'
 
 fg = "\033[38;5;{}m"
 bg = "\033[48;5;{}m"
-# reset = "\033[39m"
 reset = "\033[0m"
 
 alpha_pattern = re.compile('[a-zA-Z]*')
@@ -53,9 +52,9 @@ def transform_record(record):
 
 
 class TMString(str):
-
+    """String subclass to include a fmt_spec, to be used in log formatting."""
     def __init__(self, content):
-        self.content = content
+        self.content = str(content)
         super().__init__()
 
     @staticmethod
@@ -122,7 +121,6 @@ class TMString(str):
                         params.append(p)
 
         # Reset the fmt_spec
-        # fmt_spec = ''
         if params:
             return "".join(
                 ("".join(params), self.content, RESET)
