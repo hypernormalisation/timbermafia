@@ -61,6 +61,7 @@ class TimbermafiaFormatter(logging.Formatter):
             # For fixed length columns, or incidental
             # cases where the string "just fits", a simple
             # format gives the correct padding.
+            # print(len(s), c.reserved_padding, c.truncate_enabled)
             if len(s) == c.reserved_padding:
                 s = c.fmt.format(**record_dict)
                 formatted_string_dict[key] = [s]
@@ -124,7 +125,7 @@ class TimbermafiaFormatter(logging.Formatter):
             full_lines.append(template.format(**cd))
 
         # If requested, colour the output by the log level.
-        if not self.style.monochrome:
+        if self.style.colourised_levels:
             full_lines = self.get_colourised_output_by_level(full_lines, record)
 
         # Join each with a newline and return.
@@ -135,33 +136,8 @@ class TimbermafiaFormatter(logging.Formatter):
         Takes a list of lines and applies ANSI formatting based on the
         Style's colour palette and log level.
         """
-        # Get the palette settings.
-        level = record if isinstance(record, str) else record.levelno
-        palette_settings = self.style.palette.get(level)
-        if not palette_settings:
-            return lines
-
-        fg_colour, bg_colour, bold = palette_settings
-        total_ansi = ''
-        if fg_colour:
-            total_ansi += utils.fg.format(fg_colour)
-        if bg_colour:
-            total_ansi += utils.bg.format(bg_colour)
-        if bold:
-            total_ansi += utils.BOLD
-
-        new_lines = []
-        for line in lines:
-            # Add the colour at the start of the line
-            line = total_ansi + line
-            # Now find any resets and replace them with a
-            # reset + our new ansi.
-            line = line.replace(utils.RESET, utils.RESET+total_ansi)
-            # Add a final reset
-            line = line + utils.RESET
-            new_lines.append(line)
-
-        return new_lines
+        levelno = record if isinstance(record, str) else record.levelno
+        return self.palette.get_colourised_lines(levelno, lines)
 
     def format(self, record):
         """

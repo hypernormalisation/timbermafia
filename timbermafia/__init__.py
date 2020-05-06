@@ -7,7 +7,7 @@ import sys
 import textwrap
 import time
 import timbermafia.formats
-from timbermafia.palettes import PALETTE_DICT
+from timbermafia.palettes import PALETTE_DICT, Palette
 from timbermafia.formatters import TimbermafiaFormatter
 import timbermafia.utils as utils
 
@@ -35,16 +35,16 @@ STYLE_DEFAULTS = {
         'funcName': 0.3,
         # 'module': 0.14,
     },
-    'truncate': ['name', 'funcName'],
+    'truncate': [], # ['name', 'funcName'],
     'truncation_chars': '\u2026',
     'format': '{asctime:u} _| {levelname} _| {name}.{funcName} __>> {message:>15} ',
     'column_escape': '_',
     'format_style': '{',
     'fit_to_terminal': True,
     'n_columns': 120,
-    'max_width': 180,
+    'max_width': 160,
     'clean_output': True,
-    'monochrome': False,
+    'colourised_levels': True,
     'short_levels': True,
 }
 
@@ -55,7 +55,7 @@ class Column:
             self, fmt, justify=str.rjust,
             time_fmt='%H:%M:%S',
             truncation_fields=None,
-            truncation_chars='...',
+            truncation_chars='\u2026',
             short_levels=None
             ):
         fmt = fmt.lstrip().rstrip()
@@ -99,7 +99,7 @@ class Column:
         if not self._wrapper:
             self._wrapper = textwrap.TextWrapper(
                 width=self.reserved_padding,
-                break_long_words=False,
+                break_long_words=True,
             )
         return self._wrapper
 
@@ -246,8 +246,12 @@ class Column:
                 # and the max length from the textwrap, make it up here
                 # with additional padding.
                 to_pad = self.reserved_padding - this_line_max_length
+                # print(len(line_content), this_line_max_length, to_pad)
                 if to_pad:
-                    line_fmt += (' ' * to_pad)
+                    # print(f"{line_fmt}")
+                    line_fmt = self.justify(line_fmt, to_pad+len(line_fmt))
+                    # print(f"{line_fmt}")
+                    # line_fmt += (' ' * to_pad)
                 s = line_fmt.format(**line_record_dict)
                 formatted_lines.append(s)
 
@@ -264,6 +268,7 @@ class Column:
             # some padding to finish out this row of the column.
             elif not fmt_to_parse:
                 extra_room = self.reserved_padding - len(line_content) + len(line_fmt)
+                print(line_fmt)
                 line_fmt = self.justify(line_fmt, extra_room)
                 s = line_fmt.format(**line_record_dict)
                 formatted_lines.append(s)
@@ -392,11 +397,6 @@ class Style:
         self._single_line_output = None
         self._fields = None
 
-        # Get the requested colour palette for the log levels.
-        palette_key = kwargs.get('palette', 'sensible')
-        self.palette_key = palette_key
-        self.palette = PALETTE_DICT[palette_key]
-
         # Explicitly set the properties a logging.Formatter object
         # expects that need custom verification.
         self.format_style = kwargs.get('format_style', conf['format_style'])
@@ -417,8 +417,8 @@ class Style:
         return self._fmt_style
 
     @property
-    def monochrome(self):
-        return self.conf['monochrome']
+    def colourised_levels(self):
+        return self.conf['colourised_levels']
 
     @format_style.setter
     def format_style(self, s):
@@ -696,14 +696,15 @@ class Style:
         return d
 
 
-def configure_custom_formatter(style):
+def configure_custom_formatter(style, palette):
     """Simple function to use a Style to create
     a timbermafia formatter instance."""
     return TimbermafiaFormatter(
         style.log_format,
         style.time_format,
         style.format_style,
-        timbermafia_style=style
+        timbermafia_style=style,
+        palette=palette
     )
 
 
@@ -718,7 +719,7 @@ def configure_default_formatter(style):
 
 
 def basic_config(
-        style=None, format=None, stream=sys.stdout, filename=None,
+        style=None, format=None, stream=None, filename=None,
         palette='sensible', silent=False,
         clear=False, basic_files=True, handlers=None, level=logging.DEBUG,
         ):
@@ -728,6 +729,12 @@ def basic_config(
     """
     logging._acquireLock()
     try:
+
+        # If we have no handlers, filename and no stream, assume we want a
+        # stream piped to stdout
+        if not stream and not filename and not handlers:
+            stream = sys.stdout
+
         # Reference to the root logger
         logger = logging.root
 
@@ -747,12 +754,18 @@ def basic_config(
         my_style = style
         if not isinstance(style, Style):
             if format:
-                my_style = Style(preset=style, format=format, palette=palette)
+                my_style = Style(preset=style, format=format)
             else:
-                my_style = Style(preset=style, palette=palette)
+                my_style = Style(preset=style)
+
+        # If the given palette is a Palette instance, use it.
+        # Else generate a palette from the preset.
+        my_palette = palette
+        if not isinstance(palette, Palette):
+            my_palette = Palette(preset=palette)
 
         if use_custom_formatter:
-            custom_formatter = configure_custom_formatter(my_style)
+            custom_formatter = configure_custom_formatter(my_style, my_palette)
 
         use_default_formatter = filename and not basic_files
         if use_default_formatter:
@@ -762,7 +775,6 @@ def basic_config(
         # Add stream handler if specified
         if stream:
             h = logging.StreamHandler(stream=sys.stdout)
-            # h = RainbowStreamHandler(stream=sys.stdout, palette=palette)
             h.setFormatter(custom_formatter)
             handlers.append(h)
 

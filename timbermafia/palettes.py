@@ -1,80 +1,63 @@
+import collections.abc
+import fnmatch
 import logging
-import sys
+import re
 import timbermafia.utils as utils
-from timbermafia.utils import LOCALFILE, URL, RESET
 
 # Preset colour palettes using 8-bit ANSI codes.
 sensible = {
-    logging.DEBUG: (33, None, False),
-    logging.INFO: (255, None, False),
-    logging.WARNING: (214, None, False),
-    logging.ERROR: (196, None, True),
-    logging.FATAL: (40, 52, True),
-    LOCALFILE: (154, None, True),
-    URL: (44, None, True),
-}
-
-sensible2 = {
     logging.DEBUG: {'fg': 33},
-    logging.INFO: {'fg', 255},
+    logging.INFO: {'fg': 255},
     logging.WARNING: {'fg': 214},
-    logging.ERROR: {'fg': 196, 'codes': '1'},
-    logging.FATAL: {'fg': 40, 'bg': 52, 'codes': '1'},
+    logging.ERROR: {'fg': 196, 'codes': 1},
+    logging.FATAL: {'fg': 40, 'bg': 52, 'codes': 1},
+    # LOCALFILE: {'fg': 154, 'codes': 4},
+    # URL: {'fg': 44, 'codes': 4},
 }
 
 sensible_light = {
-    logging.DEBUG: (18, None, False),
-    logging.INFO: (232, None, False),
-    logging.WARNING: (130, None, False),
-    logging.ERROR: (196, None, True),
-    logging.FATAL: (40, 52, True),
-    LOCALFILE: (165, None, True),
-    URL: (44, None, True),
+    logging.DEBUG: {'fg': 18},
+    logging.INFO: {'fg': 232},
+    logging.WARNING: {'fg': 130},
+    logging.ERROR: {'fg': 196, 'codes': 1},
+    logging.FATAL: {'fg': 40, 'bg': 52, 'codes': 1},
 }
 
 forest = {
-    logging.DEBUG: (22, None, False),
-    logging.INFO: (34, None, False),
-    logging.WARNING: (202, None, False),
-    logging.ERROR: (94, None, True),
-    logging.FATAL: (0, 94, True),
-    LOCALFILE: (12, None, True),
-    URL: (31, None, True),
+    logging.DEBUG: {'fg': 22},
+    logging.INFO: {'fg': 34},
+    logging.WARNING: {'fg': 202},
+    logging.ERROR: {'fg': 94, 'codes': 1},
+    logging.FATAL: {'fg': 0, 'bg': 94, 'codes': 1},
 }
 
 ocean = {
-    logging.DEBUG: (27, None, False),
-    logging.INFO: (45, None, False),
-    logging.WARNING: (47, None, False),
-    logging.ERROR: (226, None, True),
-    logging.FATAL: (226, 18, True),
-    LOCALFILE: (7, None, True),
-    URL: (7, None, True),
+    logging.DEBUG: {'fg': 27},
+    logging.INFO: {'fg': 45},
+    logging.WARNING: {'fg': 47},
+    logging.ERROR: {'fg': 226, 'codes': 1},
+    logging.FATAL: {'fg': 226, 'bg': 18, 'codes': 1},
 }
 
 synth = {
-    logging.DEBUG: (51, None, False),
-    logging.INFO: (201, None, False),
-    logging.WARNING: (225, None, False),
-    logging.ERROR: (213, None, True),
-    logging.FATAL: (44, 57, True),
-    LOCALFILE: (7, None, True),
-    URL: (63, None, True),
+    logging.DEBUG: {'fg': 51},
+    logging.INFO: {'fg': 201},
+    logging.WARNING: {'fg': 225},
+    logging.ERROR: {'fg': 213, 'codes': 1},
+    logging.FATAL: {'fg': 44, 'bg': 57, 'codes': 1},
 }
 
 dawn = {
-    logging.DEBUG: (200, None, False),
-    logging.INFO: (208, None, False),
-    logging.WARNING: (190, None, False),
-    logging.ERROR: (160, None, True),
-    logging.FATAL: (226, 52, True),
-    LOCALFILE: (7, None, True),
-    URL: (147, None, True),
+    logging.DEBUG: {'fg': 200},
+    logging.INFO: {'fg': 208},
+    logging.WARNING: {'fg': 190},
+    logging.ERROR: {'fg': 160, 'codes': 1},
+    logging.FATAL: {'fg': 226, 'bg': 52, 'codes': 1},
 }
+
 
 PALETTE_DICT = {
     'sensible': sensible,
-    'sensible2': sensible2,
     'sensible_light': sensible_light,
     'forest': forest,
     'synth': synth,
@@ -93,11 +76,8 @@ class Palette:
         self.palette_dict = {}
 
         # If given a preset get those settings.
-        if preset:
-            try:
-                self.palette_dict.update(PALETTE_DICT[preset])
-            except KeyError:
-                raise
+        self.palette_dict = PALETTE_DICT[preset]
+        # print(self.palette_dict)
 
         # If given a colour map directly, use it.
         if custom:
@@ -125,32 +105,57 @@ class Palette:
     def get_ansi_string(self, levelno):
         s = ''
         d = self.palette_dict.get(levelno)
-        print(d)
         if not d:
             return s
 
         fg = d.get('fg')
         if fg:
-            s += '\033[38;5;' + fg + 'm'
+            s += '\033[38;5;' + str(fg) + 'm'
         bg = d.get('bg')
         if bg:
-            s += '\033[48;5;' + bg + 'm'
-        codes_string = d.get('codes')
-        if codes_string:
-            codes = codes_string.split(',')
+            s += '\033[48;5;' + str(bg) + 'm'
+        codes = d.get('codes')
+        if isinstance(codes, int):
+            s += '\033[' + str(codes) + 'm'
+        elif isinstance(codes, collections.abc.Iterable):
             for c in codes:
-                s += '\033[' + c + 'm'
+                s += '\033[' + str(c) + 'm'
         return s
 
     def get_colourised_lines(self, levelno, lines):
         ansi = self.get_ansi_string(levelno)
         new_lines = []
         for line in lines:
+
             # Add the colour at the start of the line
             line = ansi + line
             # Now find any resets and replace them with a
             # reset + our new ansi.
             line = line.replace(utils.RESET, utils.RESET+ansi)
+
+            # print(line.encode('unicode-escape'))
+            # THE BELOW DOES NOT WORK PROPERLY AT PRESENT, IT NEEDS
+            # TO FIND THE MOST RECENT ANSI CODES BEFORE THE PATH OR URL
+            # AND USE THAT, RATHER THAN THE GLOBAL ANSI FOR THE LINE.
+            # If specified, colour file paths
+            # file_ansi = self.get_ansi_string(LOCALFILE)
+            # if file_ansi:
+            #     files = re.findall('/[^\s]+', line)
+            #     for f in files:
+            #         previous_ansi = None
+            #         line_sub =
+            #         line = line.replace(f, file_ansi+f+RESET+ansi)
+            #
+            # # Same for URLs
+            # url_ansi = self.get_ansi_string(URL)
+            # # print(url_ansi.encode('unicode-escape'))
+            # if url_ansi:
+            #     urls = re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|'
+            #                       '[$-_@.&+]|[!*\(\),]|(?:%'
+            #                       '[0-9a-fA-F][0-9a-fA-F]))+', line)
+            #     for url in urls:
+            #         line = line.replace(url, url_ansi+url+RESET+ansi)
+
             # Add a final reset
             line = line + utils.RESET
             new_lines.append(line)
