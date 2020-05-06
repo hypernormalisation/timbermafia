@@ -1,5 +1,4 @@
 import logging
-import re
 import shutil
 import timbermafia.utils as utils
 
@@ -134,7 +133,7 @@ class TimbermafiaFormatter(logging.Formatter):
     def get_colourised_output_by_level(self, lines, record):
         """
         Takes a list of lines and applies ANSI formatting based on the
-        Style's colour palette and log level.
+        Palette and log level.
         """
         levelno = record if isinstance(record, str) else record.levelno
         return self.palette.get_colourised_lines(levelno, lines)
