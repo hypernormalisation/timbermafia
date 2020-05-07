@@ -11,7 +11,7 @@ sensible = {
     logging.ERROR: {'fg': 196, 'codes': 1},
     logging.FATAL: {'fg': 40, 'bg': 52, 'codes': 1},
     # LOCALFILE: {'fg': 154, 'codes': 4},
-    utils.URL: {'fg': 44, 'codes': 4},
+    # utils.URL: {'fg': 44, 'codes': 4},
 }
 
 sensible_light = {
@@ -131,11 +131,11 @@ class Palette:
             # reset + our new ansi.
             line = line.replace(utils.RESET, utils.RESET+ansi)
 
-            # print(line.encode('unicode-escape'))
             # THE BELOW DOES NOT WORK PROPERLY AT PRESENT, IT NEEDS
             # TO FIND THE MOST RECENT ANSI CODES BEFORE THE PATH OR URL
             # AND USE THAT, RATHER THAN THE GLOBAL ANSI FOR THE LINE.
             # If specified, colour file paths
+            # print(line.encode('unicode-escape'))
             # file_ansi = self.get_ansi_string(LOCALFILE)
             # if file_ansi:
             #     files = re.findall('/[^\s]+', line)

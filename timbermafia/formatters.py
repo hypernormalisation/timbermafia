@@ -115,8 +115,10 @@ class TimbermafiaFormatter(logging.Formatter):
                   key, lines in column_string_dict.items()}
 
             # Get the separators for this line index.
-            sd = {key: s.return_separator_string(line_index)
-                for key, s in self.style.generated_settings['separators'].items()
+            sd = {
+                key: s.return_separator_string(line_index)
+                for key, s in
+                self.style.generated_settings['separators'].items()
             }
 
             # Add separator dict to column dict and format
@@ -125,7 +127,8 @@ class TimbermafiaFormatter(logging.Formatter):
 
         # If requested, colour the output by the log level.
         if self.style.colourised_levels:
-            full_lines = self.get_colourised_output_by_level(full_lines, record)
+            full_lines = self.get_colourised_output_by_level(full_lines,
+                                                             record)
 
         # Join each with a newline and return.
         return '\n'.join(full_lines)
