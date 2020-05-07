@@ -17,27 +17,34 @@ STYLES = {
 }
 
 STYLE_DEFAULTS = {
-    'smart_names': True,
+    # Format options
+    'format': '{asctime:u} _| {levelname} _| {name}.{funcName} __>> {message:>15}',
+    'time_format': '%H:%M:%S',
+    # Justification options
     'justify': {
         'default': str.rjust,
         'left': ['message'],
     },
-    'time_format': '%H:%M:%S',
+    # Padding options - these are weights
     'padding': {
         'default': 0.2,
         'message': 1.4,
         'funcName': 0.4,
     },
+    # Truncation options
     'truncate': ['name', 'funcName'],
     'truncation_chars': '\u2026',
-    'format': '{asctime:u} _| {levelname} _| {name}.{funcName} __>> {message:>15} ',
-    'column_escape': '_',
+    # Terminal width options
     'fit_to_terminal': True,
     'n_columns': 120,
     'max_width': 140,
-    'clean_output': True,
-    'colourised_levels': True,
-    'short_levels': False,
+    # Character indicating column escapes
+    'column_escape': '_',
+    # Boolean options
+    'smart_names': True,  # Cleans certain redundant info in LogRecords
+    'clean_output': True,  # ?
+    'colourised_levels': True,  # Colourise levels based on LogRecord level
+    'short_levels': False,  # Abbreviate level names from e.g. INFO to I
 }
 
 
@@ -256,7 +263,7 @@ class Column:
             # some padding to finish out this row of the column.
             elif not fmt_to_parse:
                 extra_room = self.reserved_padding - len(line_content) + len(line_fmt)
-                print(line_fmt)
+                # print(line_fmt)
                 line_fmt = self.justify(line_fmt, extra_room)
                 s = line_fmt.format(**line_record_dict)
                 formatted_lines.append(s)

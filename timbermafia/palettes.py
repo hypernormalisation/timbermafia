@@ -1,5 +1,6 @@
 import collections.abc
 import logging
+import re
 import timbermafia.utils as utils
 
 # Preset colour palettes using 8-bit ANSI codes.
@@ -10,7 +11,7 @@ sensible = {
     logging.ERROR: {'fg': 196, 'codes': 1},
     logging.FATAL: {'fg': 40, 'bg': 52, 'codes': 1},
     # LOCALFILE: {'fg': 154, 'codes': 4},
-    # URL: {'fg': 44, 'codes': 4},
+    utils.URL: {'fg': 44, 'codes': 4},
 }
 
 sensible_light = {
@@ -144,14 +145,14 @@ class Palette:
             #         line = line.replace(f, file_ansi+f+RESET+ansi)
             #
             # # Same for URLs
-            # url_ansi = self.get_ansi_string(URL)
+            # url_ansi = self.get_ansi_string(utils.URL)
             # # print(url_ansi.encode('unicode-escape'))
             # if url_ansi:
             #     urls = re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|'
             #                       '[$-_@.&+]|[!*\(\),]|(?:%'
             #                       '[0-9a-fA-F][0-9a-fA-F]))+', line)
             #     for url in urls:
-            #         line = line.replace(url, url_ansi+url+RESET+ansi)
+            #         line = line.replace(url, url_ansi+url+utils.RESET+ansi)
 
             # Add a final reset
             line = line + utils.RESET

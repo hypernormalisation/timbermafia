@@ -57,7 +57,7 @@ class TMString(str):
         including colours."""
         params = []
         if fmt_spec:
-
+            params = [RESET]
             # Remove whitespace
             fmt_spec.replace(' ', '')
             fmts = fmt_spec.split(',')
