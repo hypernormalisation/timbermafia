@@ -11,8 +11,8 @@ def configure_custom_formatter(style, palette):
     """Simple function to use a Style to create
     a timbermafia formatter instance."""
     return TimbermafiaFormatter(
-        style.log_format,
-        style.time_format,
+        style.format,
+        style.datefmt,
         style.format_style,
         timbermafia_style=style,
         palette=palette
@@ -23,10 +23,14 @@ def configure_default_formatter(style):
     """Simple function to use a Style to create
     a basic logging.Formatter instance."""
     return logging.Formatter(
-        style.simple_log_format,
-        style.time_format,
+        style.format,
+        style.datefmt,
         style.format_style
     )
+
+
+def generate_default_style():
+    return Style(preset='default')
 
 
 def generate_style_from_preset(preset):
@@ -46,9 +50,11 @@ def print_palettes():
 
 
 def basic_config(
-        style=None, format=None, stream=None, filename=None,
-        palette='sensible', silent=False,
-        clear=False, basic_files=True, handlers=None, level=logging.DEBUG,
+        stream=None, filename=None, filemode='a',
+        style=None, palette='sensible',
+        format=None, datefmt=None,
+        silent=False, clear=False, basic_files=True,
+        handlers=None, level=logging.DEBUG,
         ):
     """Function for basic configuration of timbermafia logging.
 
@@ -57,64 +63,66 @@ def basic_config(
     logging._acquireLock()
     try:
 
-        # If we have no handlers, filename and no stream, assume we want a
-        # stream piped to stdout
-        if not stream and not filename and not handlers:
-            stream = sys.stdout
-
         # Reference to the root logger
         logger = logging.root
 
-        # Reset existing handlers if needed
+        # If we have no handlers, filename and no stream, assume we want a
+        # stream piped to stdout.
+        if not stream and not filename and not handlers:
+            stream = sys.stdout
+
+        # If no handlers set an empty list.
         handlers = handlers if handlers else []
+
+        # Reset existing handlers if needed
         if clear:
             for h in logger.handlers[:]:
                 logger.removeHandler(h)
                 h.close()
 
-        # Only create formatters and styles as required.
-        use_custom_formatter = stream or (filename and not basic_files)
-        custom_formatter, default_formatter = None, None
 
         # If the given style is a Style instance, use it.
-        # Else generate a style from the preset.
+        # Else generate a style from the preset, and
+        # set the format and datefmt if specified.
         my_style = style
         if not isinstance(style, Style):
-            if format:
-                my_style = Style(preset=style, format=format)
-            else:
-                my_style = Style(preset=style)
+            my_style = generate_style_from_preset(style)
+        if format:
+            my_style.format = format
+        if datefmt:
+            my_style.datefmt = datefmt
 
         # If the given palette is a Palette instance, use it.
         # Else generate a palette from the preset.
         my_palette = palette
         if not isinstance(palette, Palette):
-            my_palette = Palette(preset=palette)
+            my_palette = generate_palette_from_preset(palette)
 
+        # Only create formatters and styles as required.
+        use_custom_formatter = stream or (filename and not basic_files)
+        custom_formatter, default_formatter = None, None
         if use_custom_formatter:
             custom_formatter = configure_custom_formatter(my_style, my_palette)
-
         use_default_formatter = filename and basic_files
         if use_default_formatter:
-            # In line below we'll add the basic format from the style property
             default_formatter = configure_default_formatter(my_style)
 
         # Add stream handler if specified
         if stream:
-            h = logging.StreamHandler(stream=sys.stdout)
+            h = logging.StreamHandler(stream=stream)
             h.setFormatter(custom_formatter)
             handlers.append(h)
 
         # Add file handler if specified
         if filename:
-            h = logging.FileHandler(filename)
+            h = logging.FileHandler(filename, filemode)
             if basic_files:
                 h.setFormatter(default_formatter)
             else:
                 h.setFormatter(custom_formatter)
             handlers.append(h)
 
-        # Set logging levels.
+        # Set logging levels for handlers and root logger.
         for h in handlers:
             h.setLevel(level)
             logger.addHandler(h)
