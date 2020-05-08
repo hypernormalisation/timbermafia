@@ -9,8 +9,6 @@ _sensible = {
     logging.WARNING: {'fg': 214},
     logging.ERROR: {'fg': 196, 'codes': 1},
     logging.FATAL: {'fg': 40, 'bg': 52, 'codes': 1},
-    # LOCALFILE: {'fg': 154, 'codes': 4},
-    # utils.URL: {'fg': 44, 'codes': 4},
 }
 
 _sensible_light = {
@@ -125,34 +123,13 @@ class Palette:
 
             # Add the colour at the start of the line
             line = ansi + line
+
             # Now find any resets and replace them with a
             # reset + our new ansi.
             line = line.replace(utils.RESET, utils.RESET+ansi)
 
-            # THE BELOW DOES NOT WORK PROPERLY AT PRESENT, IT NEEDS
-            # TO FIND THE MOST RECENT ANSI CODES BEFORE THE PATH OR URL
-            # AND USE THAT, RATHER THAN THE GLOBAL ANSI FOR THE LINE.
-            # If specified, colour file paths
-            # print(line.encode('unicode-escape'))
-            # file_ansi = self.get_ansi_string(LOCALFILE)
-            # if file_ansi:
-            #     files = re.findall('/[^\s]+', line)
-            #     for f in files:
-            #         previous_ansi = None
-            #         line_sub =
-            #         line = line.replace(f, file_ansi+f+RESET+ansi)
-            #
-            # # Same for URLs
-            # url_ansi = self.get_ansi_string(utils.URL)
-            # # print(url_ansi.encode('unicode-escape'))
-            # if url_ansi:
-            #     urls = re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|'
-            #                       '[$-_@.&+]|[!*\(\),]|(?:%'
-            #                       '[0-9a-fA-F][0-9a-fA-F]))+', line)
-            #     for url in urls:
-            #         line = line.replace(url, url_ansi+url+utils.RESET+ansi)
-
             # Add a final reset
             line = line + utils.RESET
             new_lines.append(line)
+
         return new_lines

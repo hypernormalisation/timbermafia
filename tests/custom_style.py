@@ -1,6 +1,7 @@
 import timbermafia as tm
 
 tm.print_styles()
+tm.print_palettes()
 
 # s = tm.generate_default_style()
 # s.summarise()
