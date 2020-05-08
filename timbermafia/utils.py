@@ -1,7 +1,5 @@
 import re
 
-LOCALFILE = 'file'
-URL = 'url'
 TEMPLATE = '\033[{}m'
 BOLD = '\033[1m'
 EMPH = '\33[3m'
@@ -12,8 +10,8 @@ alpha_pattern = re.compile('[a-zA-Z]*')
 numeric_pattern = re.compile('[0-9]*')
 both_pattern = re.compile('[A-Za-z0-9]*([a-zA-Z]+[0-9]+|[0-9]+[a-zA-Z]+)')
 column_sep_pattern = re.compile(r'_{1,2}\S+|_{1,2}')
-logrecord_component_pattern = re.compile(r'(?<=\{)[a-zA-Z]+(?=[\}:])')
-logrecord_present_pattern = re.compile(r'.*\{\w+(:\S+)?\}.*')
+logrecord_component_pattern = re.compile(r'(?<={)[a-zA-Z]+(?=[}:])')
+logrecord_present_pattern = re.compile(r'.*{\w+(:\S+)?}.*')
 
 
 fg_escape = '>'
@@ -55,39 +53,38 @@ class TMString(str):
     def __format__(self, fmt_spec=''):
         """Add a flexible format spec that supports any ANSI escape codes
         including colours."""
-        params = []
-        if fmt_spec:
-            params = [RESET]
-            # Remove whitespace
-            fmt_spec.replace(' ', '')
-            fmts = fmt_spec.split(',')
+        if not fmt_spec:
+            return self.content
+        params = [RESET]
+        # Remove whitespace
+        fmt_spec.replace(' ', '')
+        fmts = fmt_spec.split(',')
 
-            parsed_fmts = []
-            for fmt in fmts:
+        parsed_fmts = []
+        for fmt in fmts:
 
-                # First format foreground and background colours as needed
-                if re.search(fg_escape, fmt):
-                    params.append(self._format_foreground_colour(fmt))
+            # First format foreground and background colours as needed
+            if re.search(fg_escape, fmt):
+                params.append(self._format_foreground_colour(fmt))
+            if re.search(bg_escape, fmt):
+                params.append(self._format_background_colour(fmt))
 
-                if re.search(bg_escape, fmt):
-                    params.append(self._format_background_colour(fmt))
+            # If both numbers and letters are present separate them
+            elif both_pattern.match(fmt):
+                characters = [x for x in alpha_pattern.findall(fmt) if x]
+                numbers = [x for x in numeric_pattern.findall(fmt) if x]
+                for x in numbers+characters:
+                    parsed_fmts.append(x)
+            else:
+                parsed_fmts.append(fmt)
 
-                # If both numbers and letters are present separate them
-                elif both_pattern.match(fmt):
-                    characters = [x for x in alpha_pattern.findall(fmt) if x]
-                    numbers = [x for x in numeric_pattern.findall(fmt) if x]
-                    for x in numbers+characters:
-                        parsed_fmts.append(x)
-                else:
-                    parsed_fmts.append(fmt)
-
-            for fmt in parsed_fmts:
-                if fmt.isnumeric():
-                    params.append(self._format_number_spec(fmt))
-                elif fmt.isalpha():
-                    plist = self._format_alpha_spec(fmt)
-                    for p in plist:
-                        params.append(p)
+        for fmt in parsed_fmts:
+            if fmt.isnumeric():
+                params.append(self._format_number_spec(fmt))
+            elif fmt.isalpha():
+                plist = self._format_alpha_spec(fmt)
+                for p in plist:
+                    params.append(p)
 
         # Reset the fmt_spec
         if params:
