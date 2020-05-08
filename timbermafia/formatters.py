@@ -3,6 +3,28 @@ import shutil
 import timbermafia.utils as utils
 
 
+def configure_custom_formatter(style, palette):
+    """Simple function to use a Style to create
+    a timbermafia formatter instance."""
+    return TimbermafiaFormatter(
+        style.format,
+        style.datefmt,
+        style.format_style,
+        timbermafia_style=style,
+        palette=palette
+    )
+
+
+def configure_default_formatter(style):
+    """Simple function to use a Style to create
+    a basic logging.Formatter instance."""
+    return logging.Formatter(
+        style.format,
+        style.datefmt,
+        style.format_style
+    )
+
+
 class TimbermafiaFormatter(logging.Formatter):
     """
     Logging.Formatter subclass enabling text-columns and
@@ -60,7 +82,6 @@ class TimbermafiaFormatter(logging.Formatter):
             # For fixed length columns, or incidental
             # cases where the string "just fits", a simple
             # format gives the correct padding.
-            # print(len(s), c.reserved_padding, c.truncate_enabled)
             if len(s) == c.reserved_padding:
                 s = c.fmt.format(**record_dict)
                 formatted_string_dict[key] = [s]

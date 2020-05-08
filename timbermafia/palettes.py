@@ -1,10 +1,9 @@
 import collections.abc
 import logging
-import re
 import timbermafia.utils as utils
 
 # Preset colour palettes using 8-bit ANSI codes.
-sensible = {
+_sensible = {
     logging.DEBUG: {'fg': 33},
     logging.INFO: {'fg': 255},
     logging.WARNING: {'fg': 214},
@@ -14,7 +13,7 @@ sensible = {
     # utils.URL: {'fg': 44, 'codes': 4},
 }
 
-sensible_light = {
+_sensible_light = {
     logging.DEBUG: {'fg': 18},
     logging.INFO: {'fg': 232},
     logging.WARNING: {'fg': 130},
@@ -22,7 +21,7 @@ sensible_light = {
     logging.FATAL: {'fg': 40, 'bg': 52, 'codes': 1},
 }
 
-forest = {
+_forest = {
     logging.DEBUG: {'fg': 22},
     logging.INFO: {'fg': 34},
     logging.WARNING: {'fg': 202},
@@ -30,7 +29,7 @@ forest = {
     logging.FATAL: {'fg': 0, 'bg': 94, 'codes': 1},
 }
 
-ocean = {
+_ocean = {
     logging.DEBUG: {'fg': 27},
     logging.INFO: {'fg': 45},
     logging.WARNING: {'fg': 47},
@@ -38,7 +37,7 @@ ocean = {
     logging.FATAL: {'fg': 226, 'bg': 18, 'codes': 1},
 }
 
-synth = {
+_synth = {
     logging.DEBUG: {'fg': 51},
     logging.INFO: {'fg': 201},
     logging.WARNING: {'fg': 225},
@@ -46,7 +45,7 @@ synth = {
     logging.FATAL: {'fg': 44, 'bg': 57, 'codes': 1},
 }
 
-dawn = {
+_dawn = {
     logging.DEBUG: {'fg': 200},
     logging.INFO: {'fg': 208},
     logging.WARNING: {'fg': 190},
@@ -54,14 +53,13 @@ dawn = {
     logging.FATAL: {'fg': 226, 'bg': 52, 'codes': 1},
 }
 
-
-PALETTE_DICT = {
-    'sensible': sensible,
-    'sensible_light': sensible_light,
-    'forest': forest,
-    'synth': synth,
-    'ocean': ocean,
-    'dawn': dawn,
+palette_dict = {
+    'sensible': _sensible,
+    'sensible_light': _sensible_light,
+    'forest': _forest,
+    'synth': _synth,
+    'ocean': _ocean,
+    'dawn': _dawn,
 }
 
 
@@ -75,7 +73,7 @@ class Palette:
         self.palette_dict = {}
 
         # If given a preset get those settings.
-        self.palette_dict = PALETTE_DICT[preset]
+        self.palette_dict = palette_dict[preset]
 
         # If given a colour map directly, use it.
         if custom:
