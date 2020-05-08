@@ -1,3 +1,12 @@
+"""Styles for timbermafia.
+
+Herein the Style class is defined, which relies upon the Column
+and Separator classes to function.
+
+Users can generate their own styles and use them in timbermafia
+or in python logging more generally.
+"""
+
 import collections.abc
 import logging
 import math
@@ -89,7 +98,6 @@ _compact = {
     'short_levels': True,
     'width': 100,
 }
-
 
 style_map = {
     'default': _default,
