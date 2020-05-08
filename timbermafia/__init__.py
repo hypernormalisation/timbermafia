@@ -78,7 +78,36 @@ def basic_config(
     configured with a timbermafia formatter.
 
     The timbermafia style and palette can be specified, as can the logging
-    format and date format.
+    format and date format. timbermafia formats can support a fmt_spec and
+    vertically aligned columns, e.g.
+        {asctime:u} _ {levelname} _ {message:b}
+    will produce an output with 3 vertically aligned columns with each
+    log record component, with an underlined datetime and a bold message.
+
+    The following are recognised in the format spec via a comma-separated
+    list:
+        b: bold
+        e: emphasis/italic
+        u: underline
+        any int: the corresponding ANSI code, e.g. 5,9 will set slow blink
+                 and crossed-out text
+        >int: set the foreground colour to the 8-bit colour code, e.g. >34
+              for a bright green.
+        <int: set the background colour to the 8-bit colour code.
+
+    If a column escape is provided ("_" by default) then this books a
+    vertically aligned column. The character immediately following this escape
+    until any whitespace are the separator characters that will be printed.
+    If whitespace immediately follows the escape, no separator character is
+    printed.
+    A single escape means any characters are printed on the first line of
+    multi-line printout, double escape on all lines of multi-line output.
+    e.g. the following format
+        {asctime} _| {name}.{funcName} __>> {message}
+    will produce output like
+        11:44:13 | MyLog.my_function >> I am a very long message
+                                     >> that is printed over several
+                                     >> lines
 
     Pass clear=True to delete all existing logging handlers.
 
