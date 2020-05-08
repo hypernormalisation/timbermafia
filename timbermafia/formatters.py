@@ -49,7 +49,7 @@ class TimbermafiaFormatter(logging.Formatter):
         self.n_columns = None
         if self.style:
             self.style.generate_column_settings()
-            self.n_columns = self.style.n_columns
+            self.n_columns = self.style.width_to_use
 
     def format_column_contents(self, record):
         """

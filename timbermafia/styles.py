@@ -192,7 +192,7 @@ class Column:
             self.justification = first_entry
 
     ############################################################
-    # Functions to figure out padding
+    # Functions to take
     ############################################################
     def count_static_padding_amount(self):
         """
@@ -391,7 +391,7 @@ class Column:
             # If the whole thing fits, add the contents in full.
             # Add an entry in the new component dict, then continue
             if (len(this_content) +
-                len(running_total_content)) < allowed_padding:
+                    len(running_total_content)) < allowed_padding:
                 running_total_content = this_content + running_total_content
                 fitted_component_dict[this_field] = this_content
                 continue
@@ -445,9 +445,7 @@ class Style:
     """
 
     def __init__(self, preset=None):
-
-        # Establish which preset to use to initialise
-        # the Style settings.
+        """Inits the Style from a preset style name if given."""
         conf = _style_defaults
         if preset:
             try:
@@ -470,7 +468,7 @@ class Style:
     # Info functions
     ############################################################
     def summarise(self):
-        """Print info on the current Style config to the user"""
+        """Prints info on the current config."""
         print('- Current settings for style:')
         d = self._conf
         for config, value in d.items():
@@ -488,6 +486,7 @@ class Style:
             else:
                 print(f'{config}:'.rjust(20) + f' {value}')
         print('*'*50)
+
     ############################################################
     # Format properties.
     ############################################################
@@ -497,6 +496,40 @@ class Style:
 
     @property
     def format(self):
+        """
+        Get or set the format for the Formatter.
+
+        timbermafia formats can support a fmt_spec and
+        vertically aligned columns, e.g.
+            {asctime:u} _ {levelname} _ {message:b}
+        will produce an output with 3 vertically aligned columns with each
+        log record component, with an underlined datetime and a bold message.
+
+        The following are recognised in the format spec via a comma-separated
+        list:
+            b: bold
+            e: emphasis/italic
+            u: underline
+            any int: the corresponding ANSI code, e.g. 5,9 will set slow blink
+                     and crossed-out text
+            >int: set the foreground colour to the 8-bit colour code, e.g. >34
+                  for a bright green.
+            <int: set the background colour to the 8-bit colour code.
+
+        If a column escape is provided ("_" by default) then this books a
+        vertically aligned column. The character immediately following this escape
+        until any whitespace are the separator characters that will be printed.
+        If whitespace immediately follows the escape, no separator character is
+        printed.
+        A single escape means any characters are printed on the first line of
+        multi-line printout, double escape on all lines of multi-line output.
+        e.g. the following format
+            {asctime} _| {name}.{funcName} __>> {message}
+        will produce output like
+            11:44:13 | MyLog.my_function >> I am a very long message
+                                         >> that is printed over several
+                                         >> lines
+        """
         return self._conf['format']
 
     @format.setter
@@ -506,12 +539,15 @@ class Style:
 
     @property
     def datefmt_length(self):
-        """Returns the length in chars of the asctime
-        with the current time format"""
+        """Get the length in chars of the formatted date/time."""
         return len(time.strftime(self.datefmt))
 
     @property
     def datefmt(self):
+        """Get or set the date/time format for the Formatter.
+
+        This is the same as standard python logging.
+        """
         return self._conf['datefmt']
 
     @datefmt.setter
@@ -521,6 +557,11 @@ class Style:
 
     @property
     def column_escape(self):
+        """Get or set the column escape character
+
+        This character, by default "_", allows the user to specify
+        vertically aligned columns in the format.
+        """
         return self._conf['column_escape']
 
     @column_escape.setter
@@ -533,9 +574,7 @@ class Style:
     # Style behaviour settings
     ############################################################
     @staticmethod
-    def set_boolean(value):
-        """Function to be called whenever a
-        boolean configurable is set."""
+    def _set_boolean(value):
         try:
             value = bool(value)
             return value
@@ -544,46 +583,70 @@ class Style:
 
     @property
     def colourised_levels(self):
-        """Is colourised output based on log level required."""
+        """Get or set the flag for colourised output dependent on log level."""
         return self._conf['colourised_levels']
 
     @colourised_levels.setter
     def colourised_levels(self, value):
-        """value must be a bool or can cast to bool."""
-        self._conf['colourised_levels'] = self.set_boolean(value)
+        self._conf['colourised_levels'] = self._set_boolean(value)
 
     @property
     def short_levels(self):
-        """Are abbreviated log level names required."""
+        """Get or set the short levels flag.
+
+        If True, log level names will be abbreviated,
+        for example INFO -> I, DEBUG -> D.
+        """
         return self._conf['short_levels']
 
     @short_levels.setter
     def short_levels(self, value):
-        """value must be a bool or can cast to bool."""
-        self._conf['short_levels'] = self.set_boolean(value)
+        self._conf['short_levels'] = self._set_boolean(value)
 
     @property
     def clean_output(self):
-        """
-        If true, removes the following:
+        """Get or set the output cleaning flag.
+
+        If true, removes the following redundant substrings from output:
         - "root." from logger names
         """
         return self._conf['clean_output']
 
     @clean_output.setter
     def clean_output(self, value):
-        self._conf['clean_output'] = self.set_boolean(value)
+        self._conf['clean_output'] = self._set_boolean(value)
 
     ############################################################
     # Width and fit_to_terminal options
     ############################################################
     @property
+    def width(self):
+        """Get or set the width in characters of the output."""
+        return self._conf['width']
+
+    @width.setter
+    def width(self, value):
+        try:
+            value = int(value)
+        except ValueError:
+            raise
+        self._conf['width'] = value
+
+    @property
     def fit_to_terminal(self):
+        """Get or set the flag to fit to terminal.
+
+        If True, each time the Formatter has to process output, it
+        will check the current terminal width if applicable, and
+        adjust the total width accordingly.
+
+        If a max width is specified in the style it is respected.
+        """
         return self._conf['fit_to_terminal']
 
     @fit_to_terminal.setter
     def fit_to_terminal(self, value):
-        self._conf['fit_to_terminal'] = self.set_boolean(value)
+        self._conf['fit_to_terminal'] = self._set_boolean(value)
 
     @property
     def use_max_width(self):
@@ -594,6 +657,14 @@ class Style:
 
     @property
     def max_width(self):
+        """Get or set a maximum width for the output.
+
+        Useful when fit to terminal is also being used.
+        If set to something that evaluates as False, is ignored.
+
+        Widths below 40 characters raise a ValueError because such low
+        widths perform poorly.
+        """
         return self._conf['max_width']
 
     @max_width.setter
@@ -616,12 +687,13 @@ class Style:
     # Justification properties and funcs
     ############################################################
     def set_justification(self, key, value):
-        """
-        Function to set any justify settings.
-        key should be a LogRecord component name.
-        value should be either:
-        - a string in ['l', 'r', 'c', 'left', 'right', 'center']
-        - a func in [str.ljust, str.rjust, str.center]
+        """Function to set an individual log record field's justification
+
+        Args:
+            key: the log record field, e.g. "name", "message"
+            value: should be either
+                - a string in ['l', 'r', 'c', 'left', 'right', 'center']
+                - a func in [str.ljust, str.rjust, str.center]
         """
         # If we get a string matching the key:
         if isinstance(value, str) and value in _just_functions_map:
@@ -643,7 +715,7 @@ class Style:
 
     @property
     def default_justification(self):
-        """Return the default_justify function."""
+        """Get or set the default justification function for the style."""
         return self._conf['justify']['default']
 
     @default_justification.setter
@@ -654,6 +726,20 @@ class Style:
     # Adaptive padding properties and funcs
     ############################################################
     def set_weight(self, field, value):
+        """Set a relative weight for a log record field's padding.
+
+        Weights determine the allotted width of any fields
+        that have a non-deterministic padding, e.g. function names,
+        messages, log names.
+
+        If a field does not have a weight it uses the default
+        weight for the style.
+        Weights for fields in a given column are additive.
+
+        Args:
+            field: the log record field.
+            value: a number indicating the relative weight.
+        """
         try:
             value = float(value)
         except ValueError:
@@ -662,7 +748,7 @@ class Style:
 
     @property
     def default_weight(self):
-        """Return the default justification."""
+        """Get or set the default weight for log record field padding."""
         return self._conf['padding_weights']['default']
 
     @default_weight.setter
@@ -674,14 +760,22 @@ class Style:
     ############################################################
     @property
     def truncate_fields(self):
+        """Get or set the log record fields to truncate.
+
+        The argument can be a single field or a list of fields.
+
+        Truncation is a contagious property, so if one field
+        in a given column is marked for truncation, the whole
+        column is truncated.
+
+        In truncation, the start of the string is pruned until
+        the string fits in a single line of the allotted width,
+        with the truncation characters prepended.
+        """
         return self._conf['truncate_fields']
 
     @truncate_fields.setter
     def truncate_fields(self, fields):
-        """
-        Overwrite all truncation settings with a new list.
-        fields can be a single LogRecord field or a list of fields.
-        """
         if isinstance(fields, str):
             self._conf['truncate'] = [fields]
         elif isinstance(collections.abc.Sequence):
@@ -691,12 +785,16 @@ class Style:
 
     @property
     def truncation_chars(self):
+        """Get or set the truncation characters for this style."""
         return self._conf['truncation_chars']
 
     @truncation_chars.setter
     def truncation_chars(self, value):
-        msg = 'truncation_chars must be a single char or string'
-        assert isinstance(value, str), msg
+        try:
+            value = str(value)
+        except ValueError:
+            print('truncation_chars must be a string')
+            raise
         self._conf['truncation_chars'] = value
 
     @property
@@ -704,11 +802,7 @@ class Style:
         return len(self.truncation_chars)
 
     def truncate_field(self, field):
-        """
-        Set a field that will trigger single-line truncation
-        in any column it inhabits.
-        key should be a LogRecord field.
-        """
+        """Register an individual field for truncation."""
         if field not in self._conf['truncate']:
             self._conf['truncate'].append(field)
 
@@ -724,8 +818,7 @@ class Style:
 
     @property
     def simple_format(self):
-        """Return the format without any
-        unnecessary whitespace or fmt_specs."""
+        """Return the format without any unnecessary whitespace or fmt_specs."""
         fmt = self.format
         fmt = re.sub(r'(?<=\w):\S+(?=[\}:])', '', fmt)
         fmt = re.sub(self.column_escape, '', fmt)
@@ -741,9 +834,11 @@ class Style:
         return fmt
 
     @property
-    def n_columns(self):
-        """Return the integer for the full width of the log output.
-        Depends on fit_to_terminal and max_width settings."""
+    def width_to_use(self):
+        """Return the full width of the log output.
+
+        Depends on fit_to_terminal and max_width settings.
+        """
         if self.fit_to_terminal:
             i = shutil.get_terminal_size().columns
             if self.use_max_width:
@@ -752,12 +847,11 @@ class Style:
             return i
         # If no adaptive settings return the simple width.
         else:
-            return self._conf['width']
+            return self.width
 
     @property
     def fields(self):
-        """Return a list of all LogRecord fields used in the
-        Style's format"""
+        """Return a list of all fields used in the Style's format"""
         if not self._column_dict:
             self.generate_column_settings()
         if self._fields is None:
@@ -773,9 +867,7 @@ class Style:
     # style and format.
     ############################################################
     def _calculate_padding(self, column_dict, separator_dict, template):
-        """
-        Function to evaluate column padding widths.
-        """
+        """Function to evaluate column padding widths."""
         # Get the total reserved space from each column,
         # which does not account for any adaptive
         # length record components.
@@ -802,10 +894,10 @@ class Style:
         ]
 
         # Normalise adaptive fields to space left
-        space_for_adaptive = self.n_columns - total_used_space
+        space_for_adaptive = self.width_to_use - total_used_space
         if space_for_adaptive < 5:
-            raise ValueError('Column width insufficient for this configuration.'
-                             ' Specify a higher column width.')
+            raise ValueError('Insufficient space for this configuration.'
+                             ' Specify a higher width.')
         adaptive_fields_dict = {}
         weights = self._conf['padding_weights']
 
@@ -837,7 +929,7 @@ class Style:
 
         # Iter over the columns and if we have adaptive fields, increment the
         # reserved padding to take us to the max.
-        deficit = self.n_columns - all_column_padding - separator_padding - nsp_len
+        deficit = self.width_to_use - all_column_padding - separator_padding - nsp_len
         while deficit > 0:
             for c in column_dict.values():
                 if c.adaptive_fields:
@@ -847,8 +939,7 @@ class Style:
                         break
 
     def generate_column_settings(self):
-        """
-        Function to parse the log format to understand any column
+        """Function to parse the log format to understand any column
         and separator specification, and return the information
         in a dict.
         """
@@ -860,7 +951,7 @@ class Style:
         # and replace them with the escape character
         # for easy splitting of column-specific formats.
         fmt_no_separators = re.sub(utils.column_sep_pattern,
-                              self.column_escape, fmt)
+                                   self.column_escape, fmt)
         all_column_formats = fmt_no_separators.split(self.column_escape)
 
         # Only consider parts of the format if they contain
