@@ -116,7 +116,7 @@ class Column:
         self.fmt_basic = re.sub(r'(?<=\w):\S+?(?=[\}:])', '', fmt)
 
         # Figure out the LogRecord fields present in this Column.
-        self.fields = re.findall(r'(?<=\{)[a-zA-Z]+(?=[\}:])', fmt)
+        self.fields = re.findall(r'(?<={)[a-zA-Z]+(?=[}:])', fmt)
 
         # Figure out if column is truncated.
         self.truncate_enabled = False
@@ -205,7 +205,7 @@ class Column:
         length of any log levelname.
         """
         # Add space from the template that won't be formatted
-        contents_no_formats = re.sub(r'\{\S+?\}', '', self.fmt)
+        contents_no_formats = re.sub(r'{\S+?}', '', self.fmt)
         self.reserved_padding += len(contents_no_formats)
         # If asctime is present add its length.
         if 'asctime' in self.fields:
@@ -287,7 +287,7 @@ class Column:
                 # If the whole thing takes us over the limit, slice off what
                 # we can fit, AND DO NOT PURGE THE FORMAT FROM THE fmt_to_parse
                 if (len(line_content) +
-                    len(this_content)) > this_line_max_length:
+                        len(this_content)) > this_line_max_length:
                     space_this_line = this_line_max_length - len(line_content)
 
                     content_to_add = this_content[:space_this_line]
@@ -742,6 +742,7 @@ class Style:
         """
         try:
             value = float(value)
+            field = str(field)
         except ValueError:
             raise
         self._conf['padding_weights'][field] = value
@@ -778,7 +779,7 @@ class Style:
     def truncate_fields(self, fields):
         if isinstance(fields, str):
             self._conf['truncate'] = [fields]
-        elif isinstance(collections.abc.Sequence):
+        elif isinstance(collections.abc.Sequence, fields):
             self._conf['truncate'] = [fields]
         else:
             raise ValueError(f'fields: {fields} not a string or iterable.')
@@ -876,7 +877,7 @@ class Style:
 
         # Add spaces from the template
         non_special_chars = ''.join(
-            [s for s in re.findall(r'(.*?)\{.*?\}', template) if s]
+            [s for s in re.findall(r'(.*?){.*?}', template) if s]
         )
         nsp_len = len(non_special_chars)
         total_used_space += len(non_special_chars)

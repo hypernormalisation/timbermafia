@@ -1,3 +1,35 @@
+"""Package that makes implementing good-looking and flexible logging easy.
+
+This package can provide one-line configurations of good-looking
+and visually clear logging, based on the following core features:
+    - an expanded fmt_spec for logging formats, allowing for individual
+    log record fields to be displayed with any colour or appearance possible
+    with ANSI codes.
+    - colourisation of logging output indicating the output's log level.
+    - a vertically aligned, column-based approach to displaying output
+    to improve visual clarity in long messages, that adaptively assigns
+    widths to individual columns.
+
+A set of default styles and colour palettes are provided. A concise, colourful
+logging appearance for stdout can be obtained by something as simple as:
+
+    import timbermafia as tm
+    tm.basic_config()
+
+in a manner analogous to logging.basicConfig, but much more powerful.
+
+Styles and colour palettes are fully customisable.
+
+Adaptive widths are used to ensure columns receive the room they need
+to display their text legibly. The user can also specify that certain
+outputs be sensibly truncated to fit on a single line.
+
+Supports resizing of output to match terminal widths as they change during
+an application.
+"""
+__name__ = 'timbermafia'
+__author__ = 'Stephen Ogilvy'
+
 import logging
 import sys
 import timbermafia.formatters
@@ -95,21 +127,21 @@ def basic_config(
               for a bright green.
         <int: set the background colour to the 8-bit colour code.
 
-    If a column escape is provided ("_" by default) then this books a
-    vertically aligned column. The character immediately following this escape
-    until any whitespace are the separator characters that will be printed.
+    If a column escape is provided ("_" by default) then this splits output
+     on either side into vertically aligned columns.
+    The character or characters immediately following this escape until any
+    whitespace are column separator characters that will be printed.
     If whitespace immediately follows the escape, no separator character is
     printed.
     A single escape means any characters are printed on the first line of
-    multi-line printout, double escape on all lines of multi-line output.
+    multi-line printout, a double escape prints output on all lines of
+    multi-line output.
+
     e.g. the following format
         {asctime} _| {name}.{funcName} __>> {message}
     will produce output like
-        11:44:13 | MyLog.my_function >> I am a very long message
-                                     >> that is printed over several
-                                     >> lines
-
-    Pass clear=True to delete all existing logging handlers.
+        11:44:13 | MyLog.my_function >> I am an arbitrarily long message
+                                     >> that is printed over several lines.
 
     Args:
         stream: Specifies that a StreamHandler be created using the given
