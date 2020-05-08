@@ -8,11 +8,12 @@ import textwrap
 import time
 import timbermafia.utils as utils
 
-FIXED_LENGTH_FIELDS = ['asctime', 'levelname']
+# LogRecord fields for which we can derive a fixed
+# or a maximum length.
+_fixed_length_fields = ['asctime', 'levelname']
 
-# Used to specify justifications by a letter, name,
-# or the func directly
-JUST_FUNCTIONS_MAP = {
+# Used to specify justifications by a letter or name.
+_just_functions_map = {
     'l': str.ljust,
     'left': str.ljust,
     'r': str.rjust,
@@ -21,9 +22,17 @@ JUST_FUNCTIONS_MAP = {
     'center': str.center,
 }
 
+# To print the Style status to the user, map
+# the justification function to a string.
+_just_label_map = {
+    str.ljust: 'left',
+    str.rjust: 'right',
+    str.center: 'center'
+}
+
 # These are the default style that all styles will pick up
 # and optionally override.
-STYLE_DEFAULTS = {
+_style_defaults = {
 
     # Format options
     'format': '{asctime:u} _| {levelname} '
@@ -65,12 +74,29 @@ STYLE_DEFAULTS = {
 
 # A map of preset style names to their configurations.
 # These are applied on top of the STYLE_DEFAULTS
-STYLES = {
-    'default': {},
-    'minimalist': {
-        'format': '{asctime} _ {message}',
-    }
+_default = {'description': 'Default style for timbermafia.'}
+
+_minimalist = {
+    'description': 'Display only the time and message, good for '
+                   'verbose log messages.',
+    'format': '{asctime} _ {message}',
+    'fit_to_terminal': True,
 }
+
+_compact = {
+    'description': 'Give lots of log record information in a small space.',
+    'format': '{asctime} _ {levelname} _ {name}.{funcName} _ {message}',
+    'short_levels': True,
+    'width': 100,
+}
+
+
+style_map = {
+    'default': _default,
+    'minimalist': _minimalist,
+    'compact': _compact,
+}
+
 
 class Column:
     """
@@ -105,7 +131,7 @@ class Column:
 
         # Figure out any adaptive length LogRecord fields.
         self.adaptive_fields = [x for x in self.fields
-                                if x not in FIXED_LENGTH_FIELDS]
+                                if x not in _fixed_length_fields]
 
         # Count any space used by the template string that
         # won't be formatted with a log record component
@@ -422,10 +448,10 @@ class Style:
 
         # Establish which preset to use to initialise
         # the Style settings.
-        conf = STYLE_DEFAULTS
+        conf = _style_defaults
         if preset:
             try:
-                conf.update(STYLES[preset])
+                conf.update(style_map[preset])
             except KeyError as e:
                 print(f'Unknown style preset: {e}')
                 raise
@@ -448,11 +474,17 @@ class Style:
         print('- Current settings for style:')
         d = self._conf
         for config, value in d.items():
-            if config in ['justify', 'padding_weights']:
+            if config == 'padding_weights':
                 print(f'{config}:'.rjust(20))
-                for k,v in value.items():
+                for k, v in value.items():
                     print(f'{k}:'.rjust(30), v)
                 print()
+            elif config == 'justify':
+                print(f'{config}:'.rjust(20))
+                for k, v in value.items():
+                    print(f'{k}:'.rjust(30), _just_label_map[v])
+            elif config == 'truncate_fields':
+                print(f'{config}:'.rjust(20) + f' {",".join(value)}')
             else:
                 print(f'{config}:'.rjust(20) + f' {value}')
         print('*'*50)
@@ -522,7 +554,7 @@ class Style:
 
     @property
     def short_levels(self):
-        """Are abbreivated log level names required."""
+        """Are abbreviated log level names required."""
         return self._conf['short_levels']
 
     @short_levels.setter
@@ -592,16 +624,16 @@ class Style:
         - a func in [str.ljust, str.rjust, str.center]
         """
         # If we get a string matching the key:
-        if isinstance(value, str) and value in JUST_FUNCTIONS_MAP:
-            self._conf['justify'][key] = JUST_FUNCTIONS_MAP[value]
+        if isinstance(value, str) and value in _just_functions_map:
+            self._conf['justify'][key] = _just_functions_map[value]
         # Else if given a function that is in the dict values, use it.
-        elif value in JUST_FUNCTIONS_MAP.values():
+        elif value in _just_functions_map.values():
             self._conf['justify'][key] = value
         # Else not recognised, raise Exception
         else:
             msg1 = (f'justify arg must be a string in:'
-                    f' {",".join(JUST_FUNCTIONS_MAP.keys())}')
-            valid_funcs = list(set(JUST_FUNCTIONS_MAP.values()))
+                    f' {",".join(_just_functions_map.keys())}')
+            valid_funcs = list(set(_just_functions_map.values()))
             msg2 = f' or a func in {",".join(valid_funcs)}'
             raise ValueError(msg1+msg2)
 
@@ -638,11 +670,24 @@ class Style:
         self.set_weight('default', value)
 
     ############################################################
-    # Truncation properties
+    # Truncation properties and funcs
     ############################################################
     @property
     def truncate_fields(self):
         return self._conf['truncate_fields']
+
+    @truncate_fields.setter
+    def truncate_fields(self, fields):
+        """
+        Overwrite all truncation settings with a new list.
+        fields can be a single LogRecord field or a list of fields.
+        """
+        if isinstance(fields, str):
+            self._conf['truncate'] = [fields]
+        elif isinstance(collections.abc.Sequence):
+            self._conf['truncate'] = [fields]
+        else:
+            raise ValueError(f'fields: {fields} not a string or iterable.')
 
     @property
     def truncation_chars(self):
@@ -666,18 +711,6 @@ class Style:
         """
         if field not in self._conf['truncate']:
             self._conf['truncate'].append(field)
-
-    def set_truncation_fields(self, fields):
-        """
-        Overwrite all truncation settings with a new list.
-        fields can be a single LogRecord field or a list of fields.
-        """
-        if isinstance(fields, str):
-            self._conf['truncate'] = [fields]
-        elif isinstance(collections.abc.Sequence):
-            self._conf['truncate'] = [fields]
-        else:
-            raise ValueError(f'fields: {fields} not a string or iterable.')
 
     ############################################################
     # Read-only properties used frequently in the code
@@ -739,7 +772,7 @@ class Style:
     # Functions to generate columns and separators for this
     # style and format.
     ############################################################
-    def calculate_padding(self, column_dict, separator_dict, template):
+    def _calculate_padding(self, column_dict, separator_dict, template):
         """
         Function to evaluate column padding widths.
         """
@@ -870,7 +903,7 @@ class Style:
         # Now take the ensemble of columns and establish what adaptive
         # fields are present in each, and delegate additional padding to
         # these columns based on the field's padding weight.
-        self.calculate_padding(column_dict, separator_dict, template)
+        self._calculate_padding(column_dict, separator_dict, template)
 
         # Internally assign these attributes.
         self._column_dict = column_dict
