@@ -96,7 +96,7 @@ def basic_config(
         style=None, palette='sensible',
         format=None, datefmt=None, level=logging.DEBUG,
         silent=False, clear=False,
-        handlers=None
+        handlers=None, fit_to_terminal=False,
         ):
     """Function for basic configuration of timbermafia logging.
 
@@ -160,6 +160,9 @@ def basic_config(
             be viewed with timbermafia.print_styles(). Note that this is not
             analogous to the style arg that logging Formatters accept, and
             timbermafia only supports the '{', or StrFormat, style.
+        fit_to_terminal: If enabled, tells the style to fit the output
+            width to the terminal width. Useful in console or terminal emulator
+            output, but doesn't behave well in Jupyter notebooks.
         palette: The name of the timbermafia colour palette to use. Available
             palettes can be viewed with timbermafia.print_palettes().
         format: Use the specified format string in the Formatter. timbermafia
@@ -206,6 +209,7 @@ def basic_config(
             my_style.format = format
         if datefmt:
             my_style.datefmt = datefmt
+        my_style.fit_to_terminal = fit_to_terminal
 
         # If the given palette is a Palette instance, use it.
         # Else generate a palette from the preset.
