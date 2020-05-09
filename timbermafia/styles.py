@@ -46,7 +46,7 @@ _style_defaults = {
 
     # Format options
     'format': '{asctime:u} _| {levelname} '
-              '_| {name}.{funcName} __>> {message:>15}',
+              '_| {name}.{funcName} __>> {message:>231}',
     'datefmt': '%H:%M:%S',
 
     # Justification options
@@ -102,10 +102,16 @@ _compact = {
 
 _boxy = {
     'description': 'A detailed, boxy looking output fit to the terminal.',
-    'format': '__| {asctime:u} __| {levelname} __| {name} __| '
+    'format': '__| {asctime:u} _ {levelname} __| {name} __| '
               '{funcName} __| {message} __|',
     'truncate_fields': [],
     'fit_to_terminal': True,
+    'padding_weights': {
+        'default': 1.0,
+        'message': 5.0,
+        'funcName': 1.5
+    },
+    'short_levels': True
 }
 
 _plain = {
