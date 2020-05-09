@@ -58,6 +58,11 @@ def generate_style_from_preset(preset):
     return timbermafia.styles.Style(preset=preset)
 
 
+def generate_default_palette():
+    """Returns an instance of the Palette class with the default settings."""
+    return timbermafia.palettes.Palette(preset='sensible')
+
+
 def generate_palette_from_preset(preset):
     """Generate a Palette object from a preset palette.
 
