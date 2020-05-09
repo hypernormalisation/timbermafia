@@ -1,5 +1,6 @@
 import logging
 import shutil
+import sys
 import timbermafia.utils as utils
 
 
@@ -43,7 +44,13 @@ class TimbermafiaFormatter(logging.Formatter):
         Usual init for logging.Formatter, and if a style is given, add
         it and set the number of columns.
         """
-        super().__init__(fmt, time_fmt, style, validate=validate)
+
+        # Validation was only included in python 3.8, so pass the
+        # version-dependent args to the Formatter init.
+        if sys.version_info[0] < 3.8:
+            super().__init__(fmt, time_fmt, style)
+        else:
+            super().__init__(fmt, time_fmt, style, validate=validate)
 
         self.style = timbermafia_style
         self.palette = palette
