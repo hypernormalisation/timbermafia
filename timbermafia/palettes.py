@@ -95,6 +95,17 @@ class Palette:
                 raise
 
     ############################################################
+    # Summarise the current state of the palette.
+    ############################################################
+    def summarise(self):
+
+        for level, name in logging._levelToName.items():
+            s = utils.RESET + self.get_ansi_string(level) +\
+                f'{name} looks like this' + utils.RESET
+            print(s)
+
+
+    ############################################################
     # Properties and functions to configure the palette.
     ############################################################
     def update_colours(self, custom):
@@ -112,7 +123,7 @@ class Palette:
         """Overwrite existing palette settings from a custom palette dict."""
         self.palette_dict = custom
 
-    def set_colour(self, level, fg=None, bg=None, codes=None, overwrite=False):
+    def set_level(self, level, fg=None, bg=None, codes=None, overwrite=False):
         """Set a given level's colour and appearance settings.
 
         Args:
@@ -138,6 +149,24 @@ class Palette:
     ############################################################
     # Funcs for use by the timbermafia classes.
     ############################################################
+    @staticmethod
+    def get_fg_ansi(code):
+        return '\033[38;5;' + str(code) + 'm'
+
+    @staticmethod
+    def get_bg_ansi(code):
+        return '\033[48;5;' + str(code) + 'm'
+
+    @staticmethod
+    def get_other_ansi_codes(codes):
+        s = ''
+        if isinstance(codes, int):
+            s += '\033[' + str(codes) + 'm'
+        elif isinstance(codes, collections.abc.Iterable):
+            for c in codes:
+                s += '\033[' + str(c) + 'm'
+        return s
+
     def get_ansi_string(self, levelno):
         s = ''
         d = self.palette_dict.get(levelno)
@@ -145,16 +174,13 @@ class Palette:
             return s
         fg = d.get('fg')
         if fg:
-            s += '\033[38;5;' + str(fg) + 'm'
+            s += self.get_fg_ansi(fg)
         bg = d.get('bg')
         if bg:
-            s += '\033[48;5;' + str(bg) + 'm'
+            s += self.get_bg_ansi(bg)
         codes = d.get('codes')
-        if isinstance(codes, int):
-            s += '\033[' + str(codes) + 'm'
-        elif isinstance(codes, collections.abc.Iterable):
-            for c in codes:
-                s += '\033[' + str(c) + 'm'
+        if codes:
+            s += self.get_other_ansi_codes(codes)
         return s
 
     def get_colourised_lines(self, levelno, lines):

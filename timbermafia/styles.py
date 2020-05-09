@@ -116,6 +116,7 @@ _plain = {
     'fit_to_terminal': True,
     'justify': {'default': str.ljust},
     'colourised_levels': False,
+    'truncate_fields': [],
 }
 
 style_map = {
@@ -807,9 +808,9 @@ class Style:
     @truncate_fields.setter
     def truncate_fields(self, fields):
         if isinstance(fields, str):
-            self._conf['truncate'] = [fields]
+            self._conf['truncate_fields'] = [fields]
         elif isinstance(collections.abc.Sequence, fields):
-            self._conf['truncate'] = [fields]
+            self._conf['truncate_fields'] = [fields]
         else:
             raise ValueError(f'fields: {fields} not a string or iterable.')
 
@@ -833,8 +834,8 @@ class Style:
 
     def truncate_field(self, field):
         """Register an individual field for truncation."""
-        if field not in self._conf['truncate']:
-            self._conf['truncate'].append(field)
+        if field not in self._conf['truncate_fields']:
+            self._conf['truncate_fields'].append(field)
 
     ############################################################
     # Read-only properties used frequently in the code
