@@ -8,6 +8,7 @@ or in python logging more generally.
 """
 
 import collections.abc
+import copy
 import logging
 import math
 import re
@@ -69,7 +70,7 @@ _style_defaults = {
 
     # Terminal width options
     'fit_to_terminal': False,
-    'width': 120,
+    'width': 100,
     'max_width': 160,
 
     # Character indicating column escapes
@@ -88,7 +89,7 @@ _default = {'description': 'Default style for timbermafia.'}
 _minimalist = {
     'description': 'Display only the time and message, good for '
                    'verbose log messages.',
-    'format': '{asctime} _ {message}',
+    'format': '{asctime} _| {message}',
     'width': 80,
 }
 
@@ -110,7 +111,7 @@ _boxy = {
 _plain = {
     'description': 'A style emulating vanilla logging.',
     'format': '{asctime} {name} > {message}',
-    'width': 120,
+    'width': 100,
     'max_width': 200,
     'fit_to_terminal': True,
     'justify': {'default': str.ljust},
@@ -474,7 +475,7 @@ class Style:
 
     def __init__(self, preset=None):
         """Inits the Style from a preset style name if given."""
-        conf = _style_defaults
+        conf = copy.deepcopy(_style_defaults)
         if preset:
             try:
                 conf.update(style_map[preset])
