@@ -47,7 +47,8 @@ class TimbermafiaFormatter(logging.Formatter):
 
         # Validation was only included in python 3.8, so pass the
         # version-dependent args to the Formatter init.
-        if sys.version_info[0] < 3.8:
+        print(sys.version_info)
+        if sys.version_info[1] < 8:
             super().__init__(fmt, time_fmt, style)
         else:
             super().__init__(fmt, time_fmt, style, validate=validate)
