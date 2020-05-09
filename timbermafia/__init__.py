@@ -84,7 +84,7 @@ def print_styles():
 def print_palettes():
     """Print the preset colour palettes."""
     print('- Preset palettes:',
-          ', '.join(timbermafia.palettes.palette_dict))
+          ', '.join(timbermafia.palettes.palette_map))
 
 
 ############################################################

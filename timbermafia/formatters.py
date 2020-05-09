@@ -26,7 +26,8 @@ def configure_default_formatter(style):
 
 
 class TimbermafiaFormatter(logging.Formatter):
-    """
+    """Colourisation of output and vertically aligned columns.
+
     Logging.Formatter subclass enabling text-columns and
     multiline output, configured in a Timbermafia.Style class
     that is owned by the formatter.
@@ -182,6 +183,7 @@ class TimbermafiaFormatter(logging.Formatter):
         # If requested, clean output.
         if self.style.clean_output:
             record.name = record.name.replace('root.', '')
+            # record.funcName = record.funcName.replace('<module>', '')
 
         # Get the message and if necessary the time.
         record.message = record.getMessage()

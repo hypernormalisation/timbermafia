@@ -57,7 +57,7 @@ _dawn = {
     logging.FATAL: {'fg': 226, 'bg': 52, 'codes': 1},
 }
 
-palette_dict = {
+palette_map = {
     'sensible': _sensible,
     'sensible_light': _sensible_light,
     'forest': _forest,
@@ -85,7 +85,7 @@ class Palette:
         self.palette_dict = {}
 
         # If given a preset get those settings.
-        self.palette_dict = palette_dict[preset]
+        self.palette_dict = palette_map[preset]
 
         # If given a colour map directly, use it.
         if custom:
