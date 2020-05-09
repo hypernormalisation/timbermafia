@@ -95,15 +95,16 @@ _minimalist = {
 
 _compact = {
     'description': 'Give lots of log record information in a small space.',
-    'format': '{asctime} _ {levelname} _ {name}.{funcName} _ {message}',
+    'format': '{asctime} _ {levelname} _ {name}.{funcName} _ {message:>231}',
     'short_levels': True,
     'width': 100,
+    'fit_to_terminal': True,
 }
 
 _boxy = {
     'description': 'A detailed, boxy looking output fit to the terminal.',
     'format': '__| {asctime:u} _ {levelname} __| {name} __| '
-              '{funcName} __| {message} __|',
+              '{funcName} __| {message:>231} __|',
     'truncate_fields': [],
     'fit_to_terminal': True,
     'padding_weights': {
