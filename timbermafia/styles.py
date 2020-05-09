@@ -59,8 +59,8 @@ _style_defaults = {
     # depending on the width.
     'padding_weights': {
         'default': 1.0,
-        'message': 5.0,
-        'funcName': 1.4,
+        'message': 6.0,
+        # 'funcName': 1,
     },
 
     # Truncation options
@@ -89,7 +89,7 @@ _minimalist = {
     'description': 'Display only the time and message, good for '
                    'verbose log messages.',
     'format': '{asctime} _ {message}',
-    'fit_to_terminal': True,
+    'width': 80,
 }
 
 _compact = {
@@ -99,10 +99,30 @@ _compact = {
     'width': 100,
 }
 
+_boxy = {
+    'description': 'A detailed, boxy looking output fit to the terminal.',
+    'format': '__| {asctime:u} __| {levelname} __| {name} __| '
+              '{funcName} __| {message} __|',
+    'truncate_fields': [],
+    'fit_to_terminal': True,
+}
+
+_plain = {
+    'description': 'A style emulating vanilla logging.',
+    'format': '{asctime} {name} > {message}',
+    'width': 120,
+    'max_width': 200,
+    'fit_to_terminal': True,
+    'justify': {'default': str.ljust},
+    'colourised_levels': False,
+}
+
 style_map = {
     'default': _default,
     'minimalist': _minimalist,
     'compact': _compact,
+    'boxy': _boxy,
+    'plain': _plain,
 }
 
 

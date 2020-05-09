@@ -1,0 +1,69 @@
+"""Script to demonstrate the requested timbermafia style, palette and format
+
+This program will configure timbermafia according to the style, palette, and
+format declared in the command-line arguments, e.g.
+
+    python demo_output.py -p synth -f '{asctime} _ {message}'
+
+Args:
+    -s, --style: the name of the timbermafia style to preview.
+    -p, --palette: the name of the timbermafia colour palette to preview.
+    -f, --format: the format string to use in the logging output.
+"""
+
+import logging
+import timbermafia
+import argparse
+
+parser = argparse.ArgumentParser('timbermafia styles/palettes')
+
+styles_gen = timbermafia.styles.style_map.keys()
+palettes_gen = timbermafia.palettes.palette_map.keys()
+
+parser.add_argument('--style', '-s', type=str, choices=styles_gen,
+                    help='timbermafia style to preview',
+                    default='default')
+parser.add_argument('--palette', '-p', type=str, choices=palettes_gen,
+                    help='timbermafia palette to preview',
+                    default='sensible')
+parser.add_argument('--format', '-f', type=str,
+                    help='format to preview',
+                    default=None)
+
+lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do " \
+        "eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut " \
+        "enim ad minim veniam, quis nostrud exercitation ullamco laboris " \
+        "nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor " \
+        "in reprehenderit in voluptate velit esse cillum dolore eu " \
+        "fugiat nulla pariatur."
+
+
+class MyClass(timbermafia.Logged):
+
+    def status(self):
+        self.log.info('Output from MyClass.status method.')
+
+    def method_with_a_very_long_name(self):
+        self.log.info('This function has a long name, and might be truncated.')
+
+my_args = parser.parse_args()
+my_palette = my_args.palette
+my_style = my_args.style
+my_format = my_args.format
+
+timbermafia.basic_config(style=my_style, palette=my_palette,
+                         format=my_format, silent=True)
+log = logging.getLogger(__name__)
+
+log.info('INFO messages look like this.')
+log.debug('DEBUG messages look like this.')
+log.warning('WARNING messages look like this.')
+log.error('ERROR messages look like this.')
+log.fatal('FATAL/CRITICAL error messages look like this.')
+log.info(lorem)
+
+m = MyClass()
+m.log.info('Output from MyClass with a timbermafia mixin logger '
+           'look like this.')
+m.status()
+m.method_with_a_very_long_name()
