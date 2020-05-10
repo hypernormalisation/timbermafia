@@ -98,7 +98,6 @@ _compact = {
     'format': '{asctime} _ {levelname} _ {name}.{funcName} _ {message:>231}',
     'short_levels': True,
     'width': 100,
-    'fit_to_terminal': True,
 }
 
 _boxy = {
@@ -112,6 +111,7 @@ _boxy = {
         'message': 5.0,
         'funcName': 1.5
     },
+    'max_width': False,
     'short_levels': True
 }
 

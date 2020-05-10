@@ -16,19 +16,19 @@ import logging
 import timbermafia
 import argparse
 
-parser = argparse.ArgumentParser('timbermafia styles/palettes')
+parser = argparse.ArgumentParser('timbermafia')
 
 styles_gen = timbermafia.styles.style_map.keys()
 palettes_gen = timbermafia.palettes.palette_map.keys()
 
-parser.add_argument('--style', '-s', type=str, choices=styles_gen,
+parser.add_argument('-s', type=str, choices=styles_gen,
                     help='timbermafia style to preview',
                     default='default')
-parser.add_argument('--palette', '-p', type=str, choices=palettes_gen,
+parser.add_argument('-p', type=str, choices=palettes_gen,
                     help='timbermafia palette to preview',
                     default='sensible')
-parser.add_argument('--format', '-f', type=str,
-                    help='format to preview',
+parser.add_argument('-f', type=str,
+                    help='format to preview, e.g. "{asctime:u} _| {message}"',
                     default=None)
 
 lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do " \
@@ -48,9 +48,9 @@ class MyClass(timbermafia.Logged):
         self.log.info('This function has a long name, and might be truncated.')
 
 my_args = parser.parse_args()
-my_palette = my_args.palette
-my_style = my_args.style
-my_format = my_args.format
+my_palette = my_args.p
+my_style = my_args.s
+my_format = my_args.f
 
 timbermafia.basic_config(style=my_style, palette=my_palette,
                          format=my_format, silent=True)
