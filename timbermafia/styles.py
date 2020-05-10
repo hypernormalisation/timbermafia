@@ -102,7 +102,7 @@ _compact = {
 
 _boxy = {
     'description': 'A detailed, boxy looking output fit to the terminal.',
-    'format': '__| {asctime:u} _ {levelname} __| {name} __| '
+    'format': '__| {asctime:u} __| {levelname:u} __| {name} __| '
               '{funcName} __| {message:>231} __|',
     'truncate_fields': [],
     'fit_to_terminal': True,
