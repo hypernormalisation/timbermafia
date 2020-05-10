@@ -7,9 +7,9 @@ format declared in the command-line arguments, e.g.
     python demo_timbermafia.py -p synth -f '{asctime} _ {message}'
 
 Args:
-    -s, --style: the name of the timbermafia style to preview.
-    -p, --palette: the name of the timbermafia colour palette to preview.
-    -f, --format: the format string to use in the logging output.
+    -s: the name of the timbermafia style to preview.
+    -p: the name of the timbermafia colour palette to preview.
+    -f: the format string to use in the logging output.
 """
 
 import logging

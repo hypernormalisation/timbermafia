@@ -1,4 +1,4 @@
-"""Package that makes implementing good-looking and flexible logging easy.
+"""Python package that makes implementing good-looking and flexible logging easy.
 
 This package can provide one-line configurations of good-looking
 and visually clear logging, based on the following core features:
