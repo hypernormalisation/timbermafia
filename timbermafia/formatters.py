@@ -75,7 +75,7 @@ class TimbermafiaFormatter(logging.Formatter):
             # Get the message components we care about first.
             # Also cast them to TMStrings
             record_dict = {
-                k: utils.TMString(v) for k, v in record.__dict__.items()
+                k: v for k, v in record.__dict__.items()
                 if k in c.fields
             }
 
@@ -83,6 +83,10 @@ class TimbermafiaFormatter(logging.Formatter):
             if self.style.short_levels:
                 if 'levelname' in record_dict:
                     record_dict['levelname'] = record_dict['levelname'][0].upper()
+
+            # Once all record modification is complete, cast everything to
+            # TMStrings so they can use our format spec.
+            record_dict = {k: utils.TMString(v) for k, v in record_dict.items()}
 
             # Use the basic format to establish the length and establish
             # the most efficient approach.
