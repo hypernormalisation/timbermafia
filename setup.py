@@ -41,8 +41,8 @@ setup(
     # This field adds keywords for your project which will appear on the
     # project page. What does your project relate to?
     keywords='logging',
-    packages=find_packages(exclude=['contrib', 'docs', 'tests']),  # Required
-
+    packages=find_packages(exclude=['contrib', 'docs', 'tests']),
+    scripts=['tests/demo_output'],
     python_requires='>=3.3',
     # install_requires=[]
 
