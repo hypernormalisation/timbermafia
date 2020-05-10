@@ -15,21 +15,14 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/hypernormalisation/timbermafia',
+
     author='Stephen Ogilvy',
     author_email='sogilvy@tutanota.io',
+
     classifiers=[
-        'Development Status :: 3 - Alpha',
-
-        # Indicate who your project is intended for
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
-
-        # Pick your license as you wish
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
-
-        # Specify the Python versions you support here. In particular, ensure
-        # that you indicate whether you support Python 2, Python 3 or both.
-        # These classifiers are *not* checked by 'pip install'. See instead
-        # 'python_requires' below.
         # 'Programming Language :: Python :: 3',
         # 'Programming Language :: Python :: 3.4',
         # 'Programming Language :: Python :: 3.5',
@@ -38,13 +31,10 @@ setup(
         'Programming Language :: Python :: 3.8',
     ],
 
-    # This field adds keywords for your project which will appear on the
-    # project page. What does your project relate to?
     keywords='logging',
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
-    scripts=['tests/demo_output'],
+    scripts=['bin/demo_timbermafia', 'bin/display_ansi_colours'],
     python_requires='>=3.3',
-    # install_requires=[]
 
     project_urls={
         'Source': 'https://github.com/hypernormalisation/timbermafia',

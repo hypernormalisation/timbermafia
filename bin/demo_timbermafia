@@ -4,7 +4,7 @@
 This program will configure timbermafia according to the style, palette, and
 format declared in the command-line arguments, e.g.
 
-    python demo_output.py -p synth -f '{asctime} _ {message}'
+    python demo_timbermafia.py -p synth -f '{asctime} _ {message}'
 
 Args:
     -s, --style: the name of the timbermafia style to preview.
