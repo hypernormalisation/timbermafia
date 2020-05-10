@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Script to demonstrate the requested timbermafia style, palette and format
 
 This program will configure timbermafia according to the style, palette, and
