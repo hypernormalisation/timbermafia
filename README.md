@@ -69,7 +69,7 @@ tm.basic_config(style="compact", palette="dawn",
                 datefmt="%d/%m/%y %H:%M:%S")
 ```
 
-and you can get output like this:
+and you can get output like this from your existing logging calls:
 
 ![](static/demo1_5.png)
 
@@ -145,6 +145,10 @@ list:
 
 Note that what ANSI codes will be possible is dependent on what terminal
 or terminal emulator is being used.
+
+A full list of the ANSI colour codes matched to some sample output can
+be printed to the terminal with the included script
+`display_ansi_colours`.
 
 ## Custom styles and palettes
 
