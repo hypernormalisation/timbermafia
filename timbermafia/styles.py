@@ -60,7 +60,7 @@ _style_defaults = {
     # depending on the width.
     'padding_weights': {
         'default': 1.0,
-        'message': 6.0,
+        'message': 5.0,
         # 'funcName': 1,
     },
 
