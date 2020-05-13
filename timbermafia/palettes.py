@@ -68,9 +68,23 @@ palette_map = {
 
 
 class Palette:
-    """
-    Class to hold the colour settings, and to colourise input based on
-    a LogRecord level.
+    """Contains the settings for text formatting and colour based on log level.
+
+    This class can be initialised from a preset colour palette by name, or
+    given a custom dictionary (see the ones in the timbermafia.palettes module
+    for details).
+
+    The recommended way to change colours and formatting for each log level is
+    to use the method set_level.
+
+    Args:
+        preset: Name of a preset palette from which to configure (call
+            timbermafia.print_palettes() to see presets).
+        custom: A dict containing the settings, should look like:
+            {
+                logging.INFO: {'fg': 200, 'bg': 100, 'codes': 1},
+                logging.WARNING: {'fg': 140, 'codes': [5, 1] },
+            }
     """
 
     def __init__(self, preset=None, custom=None):
@@ -98,12 +112,11 @@ class Palette:
     # Summarise the current state of the palette.
     ############################################################
     def summarise(self):
-
+        """Print sample colour outputs for each level."""
         for level, name in logging._levelToName.items():
             s = utils.RESET + self.get_ansi_string(level) +\
                 f'{name} looks like this' + utils.RESET
             print(s)
-
 
     ############################################################
     # Properties and functions to configure the palette.
@@ -128,7 +141,7 @@ class Palette:
 
         Args:
             level: The integer corresponding to the requested level, e.g.
-            20, logging.DEBUG etc.
+                20, logging.DEBUG etc.
             fg: The 8-bit foreground ANSI colour code for this level.
             bg: The 8-bit background ANSI colour code for this level.
             codes: An iterable of integers indicating ANSI flags to use.
