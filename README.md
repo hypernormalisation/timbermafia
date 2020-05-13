@@ -2,8 +2,8 @@
 
 ![](static/demo0.png)
 
-Python package that makes implementing good-looking and flexible logging
-easy.
+`timbermafia` is a python package that makes implementing good-looking
+and flexible logging easy.
 
 Setting up your existing logging to stdout, with fixed-width columns and
 printout over multiple lines, is as easy as placing the following in
@@ -15,7 +15,7 @@ tm.basic_config()
 ```
 
 `timbermafia` is built on python's `logging` module, so plugs in to any
-python application that uses `logging` seemlessly.
+python application that uses `logging` seamlessly.
 
 ## Installation
 
@@ -56,6 +56,23 @@ tm.print_styles()
 tm.print_palettes()
 ```
 
+Once you've found a style and palette you like, you can configure this
+in your script or application with something like:
+
+```python
+import timbermafia as tm
+import sys
+tm.basic_config(style="compact", palette="dawn",
+                stream=sys.stdout,      
+                filename="/tmp/my_output.log",
+                format="{asctime:u} _| {threadName} {name} {funcName} __>> {message}",
+                datefmt="%d/%m/%y %H:%M:%S")
+```
+
+and you can get output like this:
+
+![](static/demo1_5.png)
+
 ## Formats
 
 `timbermafia` expands what is possible in a logging format, adding
@@ -71,10 +88,10 @@ The column widths adapt based on what fields are present in them, so
 columns containing a high amount of output get more room.
 
 An example format using 4 columns, containing respectively the:
-- the date/time
-- the level name
-- the process name and log name
-- the log message
+- date/time
+- level name
+- process name and log name
+- log message
 
 can be specified with a column escape, by default "_". Whatever follows
 the column escape until the next whitespace is registered as output that

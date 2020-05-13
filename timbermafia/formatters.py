@@ -19,12 +19,19 @@ def configure_timbermafia_formatter(style, palette):
 def configure_default_formatter(style):
     """Simple function to use a Style to create
     a basic logging.Formatter instance."""
-    return logging.Formatter(
-        style.format,
-        style.datefmt,
-        style.format_style
-    )
-
+    if sys.version_info[1] < 8:
+        return logging.Formatter(
+            style.simple_format,
+            style.datefmt,
+            style.format_style,
+            validate=False,
+        )
+    else:
+        return logging.Formatter(
+            style.simple_format,
+            style.datefmt,
+            style.format_style
+        )
 
 class TimbermafiaFormatter(logging.Formatter):
     """Colourisation of output and vertically aligned columns.
