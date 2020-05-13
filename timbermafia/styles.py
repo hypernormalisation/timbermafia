@@ -476,9 +476,49 @@ class Separator:
 
 
 class Style:
-    """
-    Class to hold style settings used in timbermafia
-    logging subclasses.
+    """Class to hold style settings used in timbermafia logging.
+
+    Can be initialised from a preset style, by default the default
+    timbermafia style. Its properties can then be altered using the
+    relevant properties and setting functions.
+
+    Recommended methods to set format options:
+        format: get/set the logging format
+        datefmt: get/set the date/time format
+        column_escape: get/set the character indicating a column escape
+            in the format.
+
+    Total text width options:
+        fit_to_terminal: get/set the flag to fit the output to the terminal
+            width, if applicable.
+        width: if not fit_to_terminal, will use this width.
+        max_width: if fit_to_terminal, will not exceed this length.
+
+    Column text width options. For fields that vary in output length, like
+    the message, funcName, name etc., weights are used to adaptively assign
+    column widths.
+        default_weight: get/set the default weight (default=1.0)
+        set_weight: specify a weight for a given field.
+
+    Text justification:
+        default_justification: get/set the default justification (left, right,
+            center) for columns.
+        set_justification: specify a justification for a given field.
+
+    Text truncation:
+        truncate_fields: get/set a field or list of fields that if present in
+            a given column will mark that column for truncation.
+        truncate_field: specify if a given field should trigger truncation.
+
+    Behavioural flags:
+        short_levels: get/set if log level names should be abbreviated.
+        colourise_output: get/set if output should be colourised according
+            to its log level.
+        clean_output: get/set if redundant log output should be cleaned.
+
+    Args:
+        preset: The name of a preset style in timbermafia, available
+            through timbermafia.print_styles().
     """
 
     def __init__(self, preset=None):
@@ -978,8 +1018,8 @@ class Style:
 
     def generate_column_settings(self):
         """Function to parse the log format to understand any column
-        and separator specification, and return the information
-        in a dict.
+        and separator specification, and stores the information
+        in an internal dict.
         """
         # Reset recorded settings from any possible previous configs.
         self._fields = None
@@ -1037,9 +1077,8 @@ class Style:
         # Internally assign these attributes.
         self._column_dict = column_dict
 
-        d = {
+        self.generated_settings = {
             'columns': column_dict,
             'separators': separator_dict,
             'template': template
         }
-        self.generated_settings = d
