@@ -4,7 +4,7 @@ import sys
 import timbermafia.utils as utils
 
 
-def configure_custom_formatter(style, palette):
+def configure_timbermafia_formatter(style, palette):
     """Simple function to use a Style to create
     a timbermafia formatter instance."""
     return TimbermafiaFormatter(

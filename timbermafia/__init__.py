@@ -226,7 +226,7 @@ def basic_config(
         use_custom_formatter = stream or (filename and not basic_files)
         custom_formatter, default_formatter = None, None
         if use_custom_formatter:
-            f = timbermafia.formatters.configure_custom_formatter
+            f = timbermafia.formatters.configure_timbermafia_formatter
             custom_formatter = f(my_style, my_palette)
         use_default_formatter = filename and basic_files
         if use_default_formatter:
