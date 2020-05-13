@@ -1,11 +1,13 @@
 # timbermafia
 
-Python package that makes implementing good-looking and flexible
-logging easy.
+![](static/demo0.png)
 
-Setting up a logging to stdout, with fixed-width columns and printout
-over multiple lines, is as easy as placing the following in your script
-or top-level application module:
+Python package that makes implementing good-looking and flexible logging
+easy.
+
+Setting up your existing logging to stdout, with fixed-width columns and
+printout over multiple lines, is as easy as placing the following in
+your script or top-level application module:
 
 ```python
 import timbermafia as tm
