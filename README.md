@@ -73,6 +73,10 @@ and you can get output like this:
 
 ![](static/demo1_5.png)
 
+For information on the full functionality of `timbermafia.basic_config`,
+which is very analogous to `logging.basicConfig`, use python's help
+function on it.
+
 ## Formats
 
 `timbermafia` expands what is possible in a logging format, adding
