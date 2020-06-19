@@ -71,7 +71,7 @@ _style_defaults = {
     # Terminal width options
     'fit_to_terminal': False,
     'width': 100,
-    'max_width': 160,
+    'max_width': None,
 
     # Character indicating column escapes
     'column_escape': '_',
@@ -111,7 +111,6 @@ _boxy = {
         'message': 5.0,
         'funcName': 1.5
     },
-    'max_width': False,
     'short_levels': True
 }
 
@@ -755,9 +754,9 @@ class Style:
         except ValueError:
             raise
         # timbermafia tends to break below 40 chars
-        if i < 40:
+        if i <= 40:
             raise ValueError('max_width: {i} is too low,'
-                             ' must be above 40.')
+                             ' must be >= 40.')
         self._conf['max_width'] = i
 
     ############################################################

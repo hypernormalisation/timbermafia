@@ -101,7 +101,8 @@ def basic_config(
         style=None, palette='sensible',
         format=None, datefmt=None, level=logging.DEBUG,
         silent=False, clear=False,
-        handlers=None, fit_to_terminal=False,
+        handlers=None,
+        width=None, fit_to_terminal=False,
         ):
     """Function for basic configuration of timbermafia logging.
 
@@ -214,6 +215,8 @@ def basic_config(
             my_style.format = format
         if datefmt:
             my_style.datefmt = datefmt
+        if width:
+            my_style.width = int(width)
         my_style.fit_to_terminal = fit_to_terminal
 
         # If the given palette is a Palette instance, use it.

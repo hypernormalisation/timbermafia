@@ -18,6 +18,11 @@ fg_escape = '>'
 bg_escape = '<'
 
 
+def strip_ansi_codes(s):
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    return ansi_escape.sub('', s)
+
+
 class TMString(str):
     """String subclass to include a fmt_spec, to be used in log formatting."""
     def __init__(self, content):
