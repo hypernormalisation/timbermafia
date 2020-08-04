@@ -97,7 +97,7 @@ def print_palettes():
 # for an application.
 ############################################################
 def basic_config(
-        stream=None, filename=None, filemode='a', basic_files=True,
+        stream=None, filename=None, filemode='a', basic_files=False,
         style=None, palette='sensible',
         format=None, datefmt=None, level=logging.DEBUG,
         silent=False, clear=False,
