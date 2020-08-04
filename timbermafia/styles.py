@@ -71,7 +71,6 @@ _style_defaults = {
     # Terminal width options
     'fit_to_terminal': False,
     'width': 100,
-    'max_width': None,
 
     # Character indicating column escapes
     'column_escape': '_',
@@ -118,7 +117,6 @@ _plain = {
     'description': 'A style emulating vanilla logging.',
     'format': '{asctime} {name} > {message}',
     'width': 100,
-    'max_width': 200,
     'fit_to_terminal': True,
     'justify': {'default': str.ljust},
     'colourised_levels': False,
@@ -149,7 +147,7 @@ class Column:
 
         # Make a version of this format without any fmt_spec,
         # useful in figuring out text widths without ANSI characters.
-        self.fmt_basic = re.sub(r'(?<=\w):\S+?(?=[\}:])', '', fmt)
+        self.fmt_basic = re.sub(r'(?<=\w):\S+?(?=[}:])', '', fmt)
 
         # Figure out the LogRecord fields present in this Column.
         self.fields = re.findall(r'(?<={)[a-zA-Z]+(?=[}:])', fmt)
@@ -184,7 +182,7 @@ class Column:
     @staticmethod
     def return_simplified_format(fmt):
         """Take a given fmt and remove fmt_spec."""
-        return re.sub(r'(?<=\w):\S+(?=[\}:])', '', fmt)
+        return re.sub(r'(?<=\w):\S+(?=[}:])', '', fmt)
 
     def return_field_from_format(self, fmt):
         s = self.return_simplified_format(fmt)
@@ -491,7 +489,6 @@ class Style:
         fit_to_terminal: get/set the flag to fit the output to the terminal
             width, if applicable.
         width: if not fit_to_terminal, will use this width.
-        max_width: if fit_to_terminal, will not exceed this length.
 
     Column text width options. For fields that vary in output length, like
     the message, funcName, name etc., weights are used to adaptively assign
@@ -724,41 +721,6 @@ class Style:
     def fit_to_terminal(self, value):
         self._conf['fit_to_terminal'] = self._set_boolean(value)
 
-    @property
-    def use_max_width(self):
-        """Check a valid max width is set, and if not ignore it."""
-        if not self._conf['max_width']:
-            return False
-        return True
-
-    @property
-    def max_width(self):
-        """Get or set a maximum width for the output.
-
-        Useful when fit to terminal is also being used.
-        If set to something that evaluates as False, is ignored.
-
-        Widths below 40 characters raise a ValueError because such low
-        widths perform poorly.
-        """
-        return self._conf['max_width']
-
-    @max_width.setter
-    def max_width(self, i):
-        # Allow false or None values to be used
-        if i is None or i is False:
-            self._conf['max_width'] = False
-        # Else try to cast the int and ensure it's over 40
-        try:
-            i = int(i)
-        except ValueError:
-            raise
-        # timbermafia tends to break below 40 chars
-        if i <= 40:
-            raise ValueError('max_width: {i} is too low,'
-                             ' must be >= 40.')
-        self._conf['max_width'] = i
-
     ############################################################
     # Justification properties and funcs
     ############################################################
@@ -819,9 +781,9 @@ class Style:
         try:
             value = float(value)
             field = str(field)
+            self._conf['padding_weights'][field] = value
         except ValueError:
             raise
-        self._conf['padding_weights'][field] = value
 
     @property
     def default_weight(self):
@@ -897,7 +859,7 @@ class Style:
     def simple_format(self):
         """Return the format without any unnecessary whitespace or fmt_specs."""
         fmt = self.format
-        fmt = re.sub(r'(?<=\w):\S+(?=[\}:])', '', fmt)
+        fmt = re.sub(r'(?<=\w):\S+(?=[}:])', '', fmt)
         fmt = re.sub(self.column_escape, '', fmt)
         return fmt
 
@@ -907,20 +869,16 @@ class Style:
         the column separators.
         """
         fmt = self.format
-        fmt = re.sub(r'(?<=\w):\S+(?=[\}:])', '', fmt)
+        fmt = re.sub(r'(?<=\w):\S+(?=[}:])', '', fmt)
         return fmt
 
     @property
     def width_to_use(self):
         """Return the full width of the log output.
-
-        Depends on fit_to_terminal and max_width settings.
+        Depends on fit_to_terminal setting.
         """
         if self.fit_to_terminal:
             i = shutil.get_terminal_size().columns
-            if self.use_max_width:
-                if i > self.max_width:
-                    return self.max_width
             return i
         # If no adaptive settings return the simple width.
         else:

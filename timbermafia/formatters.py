@@ -24,14 +24,15 @@ def configure_default_formatter(style):
             style.simple_format,
             style.datefmt,
             style.format_style,
-            validate=False,
         )
     else:
         return logging.Formatter(
             style.simple_format,
             style.datefmt,
-            style.format_style
+            style.format_style,
+            validate=False
         )
+
 
 class TimbermafiaFormatter(logging.Formatter):
     """Colourisation of output and vertically aligned columns.
