@@ -6,8 +6,9 @@
 and flexible logging easy.
 
 Setting up your existing logging to stdout, with fixed-width columns and
-printout over multiple lines, is as easy as placing the following in
-your script or top-level application module:
+printout over multiple lines, is as easy as replacing your application's
+existing logging configuration with the following in your script or
+top-level application module:
 
 ```python
 import timbermafia as tm
