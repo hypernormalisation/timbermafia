@@ -200,6 +200,20 @@ class TimbermafiaFormatter(logging.Formatter):
                 self.style.generate_column_settings()
                 self.n_columns = current_n_columns
 
+        # Intercept header logic
+        if utils.divider_uuid in record.msg:
+            s = self.get_colourised_output_by_level(
+                ['-'*self.n_columns], record
+            )[0]
+            return s
+        elif utils.title_uuid in record.msg:
+            new_msg = record.msg.replace(utils.title_uuid+'_', '')
+            new_msg = new_msg.center(self.n_columns)
+            s = self.get_colourised_output_by_level(
+                [new_msg], record
+            )[0]
+            return s
+
         # If requested, clean output.
         if self.style.clean_output:
             record.name = record.name.replace('root.', '')
