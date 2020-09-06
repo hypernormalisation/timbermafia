@@ -89,13 +89,20 @@ import timbermafia as tm
 tm.monkey_patch_logger()
 ```
 
-and then from any logger:
+and then from any logger do e.g.:
 
 ```python
 import logging
 log = logging.getLogger()
 log.header('My title')
+log.info('You can separate your output into sections.')
+log.debug('Titles respect colour schemes.')
 ```
+
+to produce the following in your logging output.
+
+![](static/demo4.png)
+
 
 ## Formats
 
