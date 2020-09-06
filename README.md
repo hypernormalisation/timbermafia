@@ -77,6 +77,26 @@ For information on the full functionality of `timbermafia.basic_config`,
 which is very analogous to `logging.basicConfig`, use python's help
 function on it.
 
+## Titles in logging
+
+Timbermafia supports monkey patching of the `logging.Logger` class to
+enable any Logger object to print a title with a divider to the output.
+
+To enable this run
+
+```python
+import timbermafia as tm
+tm.monkey_patch_logger()
+```
+
+and then from any logger:
+
+```python
+import logging
+log = logging.getLogger()
+log.header('My title')
+```
+
 ## Formats
 
 `timbermafia` expands what is possible in a logging format, adding

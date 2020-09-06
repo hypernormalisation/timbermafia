@@ -13,9 +13,11 @@ column_sep_pattern = re.compile(r'_{1,2}\S+|_{1,2}')
 logrecord_component_pattern = re.compile(r'(?<={)[a-zA-Z]+(?=[}:])')
 logrecord_present_pattern = re.compile(r'.*{\w+(:\S+)?}.*')
 
-
 fg_escape = '>'
 bg_escape = '<'
+
+divider_uuid = '922931a7-ddd7-4218-b251-a8d496bd6126'
+title_uuid = 'b4391193-0634-4047-845c-28dee6e88086'
 
 
 def strip_ansi_codes(s):

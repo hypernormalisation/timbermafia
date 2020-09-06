@@ -35,6 +35,7 @@ import sys
 import timbermafia.formatters
 import timbermafia.palettes
 import timbermafia.styles
+import timbermafia.utils
 
 
 ############################################################
@@ -282,3 +283,33 @@ class Logged:
     def log(self):
         """Property to return a mixin logger."""
         return logging.getLogger(f'root.{self.__class__.__name__}')
+
+
+############################################################
+# Functions to support titles in loggers.
+############################################################
+def get_width_from_log(log):
+    """A function to get the log width from the style object,
+    if we can find a TimbermafiaFormatter attached to any handler."""
+    for h in log.handlers:
+        if isinstance(h.formatter,
+                      timbermafia.formatters.TimbermafiaFormatter):
+            if hasattr(h.formatter, "style"):
+                return h.formatter.style.width_to_use
+
+
+def header(self, msg):
+    """Function to be monkey-patched onto the
+    logging.Logger class if requested."""
+    width = get_width_from_log(self)
+    self.info(timbermafia.utils.divider_uuid)
+    self.info('_'.join([timbermafia.utils.title_uuid,
+                       msg]))
+    self.info(timbermafia.utils.divider_uuid)
+
+
+def monkey_patch_logger():
+    """If run, will monkey patch the header function onto the
+    logging.Logger class to allow all Logger objects in the application
+    to use header."""
+    logging.Logger.header = header
