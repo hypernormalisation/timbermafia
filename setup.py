@@ -7,7 +7,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='timbermafia',
-    version='0.1.2',
+    version='0.1.3',
 
     description="Package that makes implementing good-looking "
                 "and flexible logging easy.",

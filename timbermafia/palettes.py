@@ -34,18 +34,18 @@ _forest = {
 }
 
 _ocean = {
-    logging.DEBUG: {'fg': 27},
+    logging.DEBUG: {'fg': 47},
     logging.INFO: {'fg': 45},
-    logging.WARNING: {'fg': 47},
-    logging.ERROR: {'fg': 7, 'codes': 1},
-    logging.FATAL: {'fg': 7, 'bg': 18, 'codes': 1},
+    logging.WARNING: {'fg': 27},
+    logging.ERROR: {'fg': 15, 'codes': 1},
+    logging.FATAL: {'fg': 15, 'bg': 18, 'codes': 1},
 }
 
 _synth = {
     logging.DEBUG: {'fg': 51},
-    logging.INFO: {'fg': 201},
+    logging.INFO: {'fg': 207},
     logging.WARNING: {'fg': 225},
-    logging.ERROR: {'fg': 213, 'codes': 1},
+    logging.ERROR: {'fg': 129, 'codes': 1},
     logging.FATAL: {'fg': 44, 'bg': 57, 'codes': 1},
 }
 
@@ -61,7 +61,7 @@ _heart = {
     logging.DEBUG: {'fg': 231},
     logging.INFO: {'fg': 219},
     logging.WARNING: {'fg': 51},
-    logging.ERROR: {'fg': 206, 'codes': 1},
+    logging.ERROR: {'fg': 165, 'codes': 1},
     logging.FATAL: {'fg': 51, 'bg': 204, 'codes': 1},
 }
 

@@ -1,11 +1,10 @@
 """
 Tests for pytest to ensure proper lengths and format in
 the configuration are respected.
-
-Should cover cases where we have manual widths, max widths, fit_to_terminal etc.
 """
 import logging
 import shutil
+import pytest
 import timbermafia as tm
 import timbermafia.utils as utils
 import timbermafia.styles
@@ -51,32 +50,12 @@ def test_multi_line_default(capsys):
     assert len(last_line_no_ansi) == default_length
 
 
-def test_manual_width_small(capsys):
+@pytest.mark.parametrize("log_width", [
+    40, 60, 80, 100, 120, 140, 160, 180, 200,
+])
+def test_manual_width(log_width, capsys):
     """Test the lower limit of the width setting."""
-    w = 40
-    tm.basic_config(width=w)
-    log = logging.getLogger()
-    log.info(short_string)
-    out, err = capsys.readouterr()
-    line = out.split('\n')[-2]
-    line = utils.strip_ansi_codes(line)
-    assert len(line) == w
-
-    log.debug(long_string)
-    out, err = capsys.readouterr()
-    line_first = out.split('\n')[-3]
-    line_first = utils.strip_ansi_codes(line_first)
-
-    line_last = out.split('\n')[-2]
-    line_last = utils.strip_ansi_codes(line_last)
-
-    assert len(line_first) == w
-    assert len(line_last) == w
-
-
-def test_manual_width_high(capsys):
-    """Test an arbitrarily high width setting."""
-    w = 200
+    w = log_width
     tm.basic_config(width=w)
     log = logging.getLogger()
     log.info(short_string)
