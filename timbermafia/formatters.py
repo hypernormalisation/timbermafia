@@ -216,7 +216,8 @@ class TimbermafiaFormatter(logging.Formatter):
 
         # If requested, clean output.
         if self.style.clean_output:
-            record.name = record.name.replace('root.', '')
+            # record.name = record.name.replace('root.', '')
+            record.name = record.name.replace('timbermafia_mixin.', '')
             # record.funcName = record.funcName.replace('<module>', '')
 
         # Get the message and if necessary the time.

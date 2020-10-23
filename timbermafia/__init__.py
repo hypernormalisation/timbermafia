@@ -32,6 +32,8 @@ __author__ = 'Stephen Ogilvy'
 
 import logging
 import sys
+import threading
+
 import timbermafia.formatters
 import timbermafia.palettes
 import timbermafia.styles
@@ -94,11 +96,37 @@ def print_palettes():
 
 
 ############################################################
+# Make basic_config thread safe, copied from logging.
+############################################################
+_lock = threading.RLock()
+
+
+def _acquire_lock():
+    """
+    Acquire the module-level lock for serializing access to shared data.
+    This should be released with _releaseLock().
+    """
+    if _lock:
+        _lock.acquire()
+
+
+def _release_lock():
+    """
+    Release the module-level lock acquired by calling _acquireLock().
+    """
+    if _lock:
+        _lock.release()
+
+
+############################################################
 # Function to have timbermafia configure logging
 # for an application.
 ############################################################
+# noinspection PyShadowingBuiltins
 def basic_config(
-        stream=None, filename=None, filemode='a', basic_files=False,
+        name=None,
+        stream=None,
+        filename=None, filemode='a', basic_files=False,
         style=None, palette='sensible',
         format=None, datefmt=None, level=logging.DEBUG,
         silent=False, clear=False,
@@ -151,6 +179,10 @@ def basic_config(
                                      >> that is printed over several lines.
 
     Args:
+        name: If given, configures a logger with that name that can be retrieved
+            later with logging.getLogger. If not given, the logging library's
+            root logger is modified, which should be used with caution! For
+            instance, this will enable *all* logging for each library you use!
         stream: Specifies that a StreamHandler be created using the given
             stream. If no stream or filename args given, a StreamHandler using
             stdout will be configured.
@@ -185,86 +217,121 @@ def basic_config(
             root logger before carrying out any further configuration.
         handlers: Should be an iterable of handlers, which will be
             equipped with a timbermafia formatter and added to the root logger.
+        width: the width in columns for the log output.
     """
-    logging._acquireLock()
+    _acquire_lock()
     try:
-
-        # Reference to the root logger
-        logger = logging.root
+        custom_formatter = get_timbermafia_formatter(
+            style, palette, format, datefmt, width, fit_to_terminal
+        )
 
         # If we have no handlers, filename and no stream, assume we want a
         # stream piped to stdout.
         if not stream and not filename and not handlers:
             stream = sys.stdout
 
-        # If no handlers set an empty list.
         handlers = handlers if handlers else []
-
-        # Reset existing handlers if needed
-        if clear:
-            for h in logger.handlers[:]:
-                logger.removeHandler(h)
-                h.close()
-
-        # If the given style is a Style instance, use it.
-        # Else generate a style from the preset, and
-        # set the format and datefmt if specified.
-        my_style = style
-        if not isinstance(style, timbermafia.styles.Style):
-            my_style = generate_style_from_preset(style)
-        if format:
-            my_style.format = format
-        if datefmt:
-            my_style.datefmt = datefmt
-        if width:
-            my_style.width = int(width)
-        my_style.fit_to_terminal = fit_to_terminal
-
-        # If the given palette is a Palette instance, use it.
-        # Else generate a palette from the preset.
-        my_palette = palette
-        if not isinstance(palette, timbermafia.palettes.Palette):
-            my_palette = generate_palette_from_preset(palette)
-
-        # Only create formatters and styles as required.
-        use_custom_formatter = stream or (filename and not basic_files)
-        custom_formatter, default_formatter = None, None
-        if use_custom_formatter:
-            f = timbermafia.formatters.configure_timbermafia_formatter
-            custom_formatter = f(my_style, my_palette)
-        use_default_formatter = filename and basic_files
-        if use_default_formatter:
-            f = timbermafia.formatters.configure_default_formatter
-            default_formatter = f(my_style)
-
         # Add stream handler if specified
         if stream:
             h = logging.StreamHandler(stream=stream)
             h.setFormatter(custom_formatter)
             handlers.append(h)
-
         # Add file handler if specified
         if filename:
             h = logging.FileHandler(filename, filemode)
             if basic_files:
+                f = timbermafia.formatters.configure_default_formatter
+                default_formatter = f(custom_formatter.style)
                 h.setFormatter(default_formatter)
             else:
                 h.setFormatter(custom_formatter)
             handlers.append(h)
 
-        # Set logging levels for handlers and root logger.
-        for h in handlers:
-            h.setLevel(level)
-            logger.addHandler(h)
-        logger.setLevel(level)
+        # Now configure the logger objects as needed.
+        # If working with the root logger, only one logger is required.
+        # If we're working with a named logger, we need to clone this logger
+        # to be picked up by classes inheriting from timbermafia.Logged.
+        loggers = []
+        if name:
+            loggers.append(logging.getLogger(name))
+            loggers.append(logging.getLogger('timbermafia_mixin'))
+        else:
+            loggers.append(logging.root)
+        for logger in loggers:
+            if clear:
+                for h in logger.handlers[:]:
+                    logger.removeHandler(h)
+                    h.close()
+            for h in handlers:
+                logger.addHandler(h)
+            logger.setLevel(level)
 
         if not silent:
             print('- timbermafia has configured handlers:')
             for h in handlers:
                 print('  -', h)
-
+            if name:
+                print(f'- name {name} given, generated named logger.')
+            else:
+                print('- no name given, manipulated the root logger. Warning:'
+                      ' this will alter *all* logging in your application, '
+                      'including in the libraries you use!')
     finally:
-        logging._releaseLock()
+        _release_lock()
+
+
+# noinspection PyShadowingBuiltins
+def get_timbermafia_formatter(
+        style=None, palette='sensible',
+        format=None, datefmt=None,
+        width=None, fit_to_terminal=False,
+        ):
+    """
+    Return an instance of the TimbermafiaFormatter according to the given
+    specification. This can be used in more complex configurations of
+    handlers and loggers than basic_config can provide.
+
+    Args:
+        style: The name of the timbermafia style to use. Available styles can
+            be viewed with timbermafia.print_styles(). Note that this is not
+            analogous to the style arg that logging Formatters accept, and
+            timbermafia only supports the '{', or StrFormat, style.
+        fit_to_terminal: If enabled, tells the style to fit the output
+            width to the terminal width. Useful in console or terminal emulator
+            output, but doesn't behave well in Jupyter notebooks.
+        palette: The name of the timbermafia colour palette to use. Available
+            palettes can be viewed with timbermafia.print_palettes().
+        format: Use the specified format string in the Formatter. timbermafia
+            formats can use an expanded format spec, and vertically aligned
+            columns can be declared with the appropriate escape character, by
+            default '_'.
+        datefmt: Use the specified date/time format in the Formatter.
+        width: the width in columns for the log output.
+
+    """
+
+    # If the given style is a Style instance, use it.
+    # Else generate a style from the preset, and
+    # set the format and datefmt if specified.
+    my_style = style
+    if not isinstance(style, timbermafia.styles.Style):
+        my_style = generate_style_from_preset(style)
+    if format:
+        my_style.format = format
+    if datefmt:
+        my_style.datefmt = datefmt
+    if width:
+        my_style.width = int(width)
+    my_style.fit_to_terminal = fit_to_terminal
+
+    # If the given palette is a Palette instance, use it.
+    # Else generate a palette from the preset.
+    my_palette = palette
+    if not isinstance(palette, timbermafia.palettes.Palette):
+        my_palette = generate_palette_from_preset(palette)
+
+    f = timbermafia.formatters.configure_timbermafia_formatter
+    return f(my_style, my_palette)
 
 
 ############################################################
@@ -276,13 +343,13 @@ class Logged:
     The log name ensures the root logger is in the logger
     hierarchy, and that its handlers can be used.
 
-    Timbermafia can clean up the "root." from the output
+    Timbermafia can clean up the "timbermafia_mixin." from the output
     automatically for visual clarity.
     """
     @property
     def log(self):
         """Property to return a mixin logger."""
-        return logging.getLogger(f'root.{self.__class__.__name__}')
+        return logging.getLogger(f'timbermafia_mixin.{self.__class__.__name__}')
 
 
 ############################################################
@@ -301,7 +368,6 @@ def get_width_from_log(log):
 def header(self, msg):
     """Function to be monkey-patched onto the
     logging.Logger class if requested."""
-    width = get_width_from_log(self)
     self.info(timbermafia.utils.divider_uuid)
     self.info('_'.join([timbermafia.utils.title_uuid,
                        msg]))
