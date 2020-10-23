@@ -11,8 +11,10 @@ import timbermafia.styles
 
 short_string = 'Some sample message.'
 
-long_string = 'A very long message that will have to be split over multiple' \
-    'lines, that will be used in testing multiline printout in this module.'
+long_string = 'A very very very very very very very very very very very very' \
+              'long message that will have to be split over multiple' \
+              'lines, that will be used in testing multiline printout in ' \
+              'this module.'
 
 default_length = timbermafia.styles._style_defaults['width']
 
@@ -50,14 +52,14 @@ def test_multi_line_default(capsys):
     assert len(last_line_no_ansi) == default_length
 
 
-@pytest.mark.parametrize("log_width", [
-    40, 60, 80, 100, 120, 140, 160, 180, 200,
-])
-def test_manual_width(log_width, capsys):
-    """Test the lower limit of the width setting."""
+@pytest.mark.parametrize("log_width", list(range(40, 200, 3)))
+@pytest.mark.parametrize("log_name", [None, 'my_test'])
+def test_manual_width(log_width, log_name, capsys):
+    """Test the width setting."""
     w = log_width
     tm.basic_config(width=w)
-    log = logging.getLogger()
+    log_name_manual = 'my_test'
+    log = logging.getLogger(log_name_manual)
     log.info(short_string)
     out, err = capsys.readouterr()
     line = out.split('\n')[-2]
