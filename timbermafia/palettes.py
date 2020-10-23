@@ -60,9 +60,9 @@ _dawn = {
 _heart = {
     logging.DEBUG: {'fg': 231},
     logging.INFO: {'fg': 219},
-    logging.WARNING: {'fg': 33},
+    logging.WARNING: {'fg': 51},
     logging.ERROR: {'fg': 206, 'codes': 1},
-    logging.FATAL: {'fg': 51, 'bg': 206, 'codes': 1},
+    logging.FATAL: {'fg': 51, 'bg': 204, 'codes': 1},
 }
 
 palette_map = {
