@@ -2,44 +2,47 @@
 
 ![](static/demo0.png)
 
-`timbermafia` is a python package that makes implementing good-looking
-and flexible logging easy.
+`timbermafia` is a drop-in replacement for application logging in
+python, supporting 8-bit colour output over aligned columns and expanded
+formatting options.
 
-Setting up your existing logging to stdout, with fixed-width columns and
-printout over multiple lines, is as easy as replacing your application's
-existing logging configuration with the following in your script or
-top-level application module:
+Output like that shown above is possible with a simple:
 
 ```python
 import timbermafia as tm
 tm.basic_config()
 ```
 
-`timbermafia` is built on python's `logging` module, so plugs in to any
-python application that uses `logging` seamlessly.
+`timbermafia.basic_config` is by default similar to
+`logging.basicConfig`, in that it modifies the logging module's root
+logger. This may not be what you want: for instance, every library with
+logging calls in your application will produce output!
+
+To instead produce a named `logging.Logger` object, pass the `name`
+keyword to the function and retrieve it with `logging.getLogger`.
 
 ## Installation
 
 `timbermafia` is available on the Python Package Index (PyPI).
 
-```
+```bash
 pip install timbermafia
 ```
 
 It requires python version 3.6 or later.
 
-## Features
+<!--## Features-->
 
-`timbermafia` implements a formatter with the following features:
-- vertically aligned, column-based output, with adaptively allocated and
-  tweakable widths.
-- output over aligned, multiple lines, with truncation support for
-  fields to fit into a single line.
-- an expanded fmt_spec for the logging format, allowing for log record
-  fields to be formatted individually with 8-bit ANSI colours and
-  formats.
-- colourised and formatted output for each different logging level.
-- a variety of pre-configured styles and colour palettes.
+<!--`timbermafia` implements a formatter with the following features:-->
+<!--- vertically aligned, column-based output, with adaptively allocated and-->
+<!--  tweakable widths.-->
+<!--- output over aligned, multiple lines, with truncation support for-->
+<!--  fields to fit into a single line.-->
+<!--- an expanded fmt_spec for the logging format, allowing for log record-->
+<!--  fields to be formatted individually with 8-bit ANSI colours and other-->
+<!--  formatting options.-->
+<!--- colourised and formatted output for each different logging level.-->
+<!--- a variety of pre-configured styles and colour palettes.-->
 
 ## Try it out!
 
@@ -57,26 +60,22 @@ tm.print_styles()
 tm.print_palettes()
 ```
 
-Once you've found a style and palette you like, you can configure this
-in your script or application with something like:
+<!--Once you've found a style and palette you like, you can configure this-->
+<!--in your script or application with something like:-->
 
-```python
-import timbermafia as tm
-import sys
-tm.basic_config(style="compact", palette="dawn",
-                stream=sys.stdout,      
-                filename="/tmp/my_output.log",
-                format="{asctime:u} _| {threadName} {name} {funcName} __>> {message}",
-                datefmt="%d/%m/%y %H:%M:%S")
-```
+<!--```python-->
+<!--import timbermafia as tm-->
+<!--import sys-->
+<!--tm.basic_config(style="compact", palette="dawn",-->
+<!--                stream=sys.stdout,      -->
+<!--                filename="/tmp/my_output.log",-->
+<!--                format="{asctime:u} _| {threadName} {name} {funcName} __>> {message}",-->
+<!--                datefmt="%d/%m/%y %H:%M:%S")-->
+<!--```-->
 
-and you can get output like this from your existing logging calls:
+<!--and you can get output like this from your existing logging calls:-->
 
-![](static/demo1_5.png)
-
-For information on the full functionality of `timbermafia.basic_config`,
-which is very analogous to `logging.basicConfig`, use python's help
-function on it.
+<!--![](static/demo1_5.png)-->
 
 ## Titles in logging
 

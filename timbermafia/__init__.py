@@ -225,8 +225,8 @@ def basic_config(
             style, palette, format, datefmt, width, fit_to_terminal
         )
 
-        # If we have no handlers, filename and no stream, assume we want a
-        # stream piped to stdout.
+        # If we have no handlers, no filename, and no stream then
+        # assume we want a stream on stdout.
         if not stream and not filename and not handlers:
             stream = sys.stdout
 
@@ -308,11 +308,9 @@ def get_timbermafia_formatter(
         datefmt: Use the specified date/time format in the Formatter.
         width: the width in columns for the log output.
 
+    Returns:
+        A TimbermafiaFormatter instance configured to spec.
     """
-
-    # If the given style is a Style instance, use it.
-    # Else generate a style from the preset, and
-    # set the format and datefmt if specified.
     my_style = style
     if not isinstance(style, timbermafia.styles.Style):
         my_style = generate_style_from_preset(style)
@@ -324,8 +322,6 @@ def get_timbermafia_formatter(
         my_style.width = int(width)
     my_style.fit_to_terminal = fit_to_terminal
 
-    # If the given palette is a Palette instance, use it.
-    # Else generate a palette from the preset.
     my_palette = palette
     if not isinstance(palette, timbermafia.palettes.Palette):
         my_palette = generate_palette_from_preset(palette)
