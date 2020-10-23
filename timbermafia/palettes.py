@@ -29,16 +29,16 @@ _forest = {
     logging.DEBUG: {'fg': 22},
     logging.INFO: {'fg': 34},
     logging.WARNING: {'fg': 202},
-    logging.ERROR: {'fg': 94, 'codes': 1},
-    logging.FATAL: {'fg': 0, 'bg': 94, 'codes': 1},
+    logging.ERROR: {'fg': 124, 'codes': 1},
+    logging.FATAL: {'fg': 0, 'bg': 88, 'codes': 1},
 }
 
 _ocean = {
     logging.DEBUG: {'fg': 27},
     logging.INFO: {'fg': 45},
     logging.WARNING: {'fg': 47},
-    logging.ERROR: {'fg': 226, 'codes': 1},
-    logging.FATAL: {'fg': 226, 'bg': 18, 'codes': 1},
+    logging.ERROR: {'fg': 7, 'codes': 1},
+    logging.FATAL: {'fg': 7, 'bg': 18, 'codes': 1},
 }
 
 _synth = {
