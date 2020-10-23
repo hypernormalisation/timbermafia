@@ -57,6 +57,14 @@ _dawn = {
     logging.FATAL: {'fg': 226, 'bg': 52, 'codes': 1},
 }
 
+_heart = {
+    logging.DEBUG: {'fg': 231},
+    logging.INFO: {'fg': 219},
+    logging.WARNING: {'fg': 33},
+    logging.ERROR: {'fg': 206, 'codes': 1},
+    logging.FATAL: {'fg': 51, 'bg': 206, 'codes': 1},
+}
+
 palette_map = {
     'sensible': _sensible,
     'sensible_light': _sensible_light,
@@ -64,6 +72,7 @@ palette_map = {
     'synth': _synth,
     'ocean': _ocean,
     'dawn': _dawn,
+    'heart': _heart,
 }
 
 
