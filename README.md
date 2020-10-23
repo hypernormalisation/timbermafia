@@ -24,15 +24,18 @@ You can get started using timbermafia with a simple:
 import timbermafia as tm
 tm.basic_config()
 ```
-placed in your script or application.
+placed in your script or application. This configuration function is
+very flexible, and can be used to specify styles, colour palettes,
+logging and date formats, output streams or files, and more.
 
 `timbermafia.basic_config` is by default similar to
 `logging.basicConfig`, in that it modifies the logging module's root
 logger. This may not be what you want: for instance, every library with
 logging calls in your application will produce output!
 
-To instead produce a named `logging.Logger` object, pass the `name`
-keyword to the function, and retrieve it later with `logging.getLogger`.
+To prevent this, instead produce a named `logging.Logger` object by
+passing the `name` keyword to the function, and retrieve it later with
+`logging.getLogger`.
 
 ## Try it out!
 
