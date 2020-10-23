@@ -53,10 +53,9 @@ class TimbermafiaFormatter(logging.Formatter):
         it and set the number of columns.
         """
 
-        # Validation was only included in python 3.8, so pass the
+        # Format validation was only included in python 3.8, so pass the
         # version-dependent args to the Formatter init.
-        # print(sys.version_info)
-        if sys.version_info[1] < 8:
+        if sys.version_info.major == 3 and sys.version_info.minor < 8:
             super().__init__(fmt, time_fmt, style)
         else:
             super().__init__(fmt, time_fmt, style, validate=validate)
