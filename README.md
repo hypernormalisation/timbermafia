@@ -3,7 +3,7 @@
 ![](static/demo0.png)
 
 `timbermafia` is a drop-in replacement for application logging in
-python, supporting 8-bit colour output over aligned columns and expanded
+python, supporting 256-bit colour output over aligned columns and expanded
 formatting options.
 
 Users can choose from a selection of predefined styles and colour
